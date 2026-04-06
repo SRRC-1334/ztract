@@ -141,47 +141,29 @@ public class Decoder {
      */
     private static Object decodeField(Primitive primitive, byte[] bytes, Charset charset) {
         CobolType dataType = primitive.dataType();
-        String dataTypeStr = dataType.toString().toUpperCase();
 
-        // ALPHANUMERIC / PIC X -- character data
-        if (dataTypeStr.contains("ALPHANUMERIC") || dataTypeStr.contains("STRING")) {
-            return new String(bytes, charset).stripTrailing();
-        }
-
-        // COMP-3 / PACKED DECIMAL
-        if (dataTypeStr.contains("COMP3") || dataTypeStr.contains("COMP-3") || dataTypeStr.contains("PACKED")) {
+        // COMP-3 / PACKED DECIMAL — check first (before generic Decimal)
+        if (CobrixHelper.isComp3(dataType)) {
             return decodePackedDecimal(bytes, CobrixHelper.getScale(dataType));
         }
 
-        // COMP / COMP-4 / BINARY -- big-endian integer
-        if (dataTypeStr.contains("COMP4") || dataTypeStr.contains("COMP-4")
-                || dataTypeStr.contains("BINARY")
-                || (dataTypeStr.contains("COMP") && !dataTypeStr.contains("COMP-1") && !dataTypeStr.contains("COMP-2")
-                && !dataTypeStr.contains("COMP-3") && !dataTypeStr.contains("COMP3"))) {
+        // COMP / COMP-4 / BINARY
+        if (CobrixHelper.isCompBinary(dataType)) {
             return decodeBinaryInteger(bytes, CobrixHelper.isSigned(dataType));
         }
 
-        // COMP-1 -- 4-byte IEEE float
-        if (dataTypeStr.contains("COMP-1") || dataTypeStr.contains("COMP1") || dataTypeStr.contains("FLOAT")) {
-            if (bytes.length == 4) {
-                return ByteBuffer.wrap(bytes).getFloat();
-            }
-            return ByteBuffer.wrap(bytes).getDouble();
-        }
-
-        // COMP-2 -- 8-byte IEEE double
-        if (dataTypeStr.contains("COMP-2") || dataTypeStr.contains("COMP2") || dataTypeStr.contains("DOUBLE")) {
-            return ByteBuffer.wrap(bytes).getDouble();
-        }
-
-        // NUMERIC DISPLAY -- zoned decimal
-        if (dataTypeStr.contains("NUMERIC") || dataTypeStr.contains("DECIMAL")
-                || dataTypeStr.contains("INTEGER") || dataTypeStr.contains("INTEGRAL")) {
+        // Decimal without compact = zoned decimal (DISPLAY)
+        if (dataType instanceof za.co.absa.cobrix.cobol.parser.ast.datatype.Decimal) {
             return decodeZonedDecimal(bytes, charset, CobrixHelper.getScale(dataType),
                     CobrixHelper.isSigned(dataType));
         }
 
-        // Fallback: treat as alphanumeric
+        // Integral without compact = zoned numeric (DISPLAY)
+        if (dataType instanceof za.co.absa.cobrix.cobol.parser.ast.datatype.Integral) {
+            return decodeZonedDecimal(bytes, charset, 0, CobrixHelper.isSigned(dataType));
+        }
+
+        // ALPHANUMERIC / everything else
         return new String(bytes, charset).stripTrailing();
     }
 

@@ -74,7 +74,7 @@ def get_generator(
             if re.search(pattern, name_upper):
                 return gen
 
-    if "NUMERIC" in ftype or ftype in ("NUMERIC", "NUM", "N", "9", "PACKED", "BINARY"):
+    if "NUMERIC" in ftype or "DECIMAL" in ftype or "PACKED" in ftype or "INTEGRAL" in ftype or ftype in ("NUMERIC", "NUM", "N", "9", "BINARY"):
         for pattern, gen in _NUMERIC_PATTERNS:
             if re.search(pattern, name_upper):
                 return gen
@@ -125,7 +125,10 @@ def generate_value(
     is_alpha = "ALPHA" in ftype or ftype in ("ALPHANUMERIC", "ALPHA", "AN", "X")
     is_numeric = (
         "NUMERIC" in ftype
-        or ftype in ("NUMERIC", "NUM", "N", "9", "PACKED", "BINARY")
+        or "DECIMAL" in ftype
+        or "PACKED" in ftype
+        or "INTEGRAL" in ftype
+        or ftype in ("NUMERIC", "NUM", "N", "9", "BINARY")
     )
 
     gen = get_generator(field_name, field_type, size)

@@ -73,8 +73,10 @@ def generate_records(
         for field_def in fields:
             name: str = field_def.get("name", "")
 
-            # Skip FILLER fields — they carry no data
+            # Skip FILLER and GROUP fields — they carry no data
             if name.upper() == "FILLER":
+                continue
+            if field_def.get("type", "").upper() == "GROUP":
                 continue
 
             ftype: str = field_def.get("type", "ALPHANUMERIC")

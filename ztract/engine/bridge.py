@@ -258,8 +258,8 @@ class ZtractBridge:
         with subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         ) as proc:
             self._active_proc = proc
             try:
@@ -267,8 +267,13 @@ class ZtractBridge:
                     line = json.dumps(record) + "\n"
                     proc.stdin.write(line.encode("utf-8"))  # type: ignore[union-attr]
                     count += 1
+                    if count % 50 == 0:
+                        proc.stdin.flush()  # type: ignore[union-attr]
+                proc.stdin.flush()  # type: ignore[union-attr]
                 proc.stdin.close()  # type: ignore[union-attr]
                 proc.wait()
+                if proc.returncode != 0:
+                    raise EngineError(f"Encode failed (exit {proc.returncode})")
             finally:
                 self._active_proc = None
 

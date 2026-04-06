@@ -109,6 +109,31 @@ public class CobrixHelper {
     }
 
     /**
+     * Check if the CobolType is a COMP-3 (packed decimal) type.
+     * Checks if the type is Decimal with compact=Some(Left) which indicates COMP-3.
+     */
+    public static boolean isComp3(CobolType dataType) {
+        if (dataType instanceof Decimal) {
+            Decimal dec = (Decimal) dataType;
+            // compact() returns Option<Position>; isDefined means it's COMP-3
+            return dec.compact().isDefined();
+        }
+        return false;
+    }
+
+    /**
+     * Check if the CobolType is a binary (COMP/COMP-4) type.
+     * Integral types with compact defined are COMP/COMP-4.
+     */
+    public static boolean isCompBinary(CobolType dataType) {
+        if (dataType instanceof Integral) {
+            Integral intg = (Integral) dataType;
+            return intg.compact().isDefined();
+        }
+        return false;
+    }
+
+    /**
      * Recursively collect all Primitive fields from the AST.
      */
     public static void collectPrimitives(Statement stmt, List<Primitive> primitives) {

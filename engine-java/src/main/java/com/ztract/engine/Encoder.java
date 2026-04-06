@@ -129,16 +129,9 @@ public class Encoder {
                                     byte[] recordBytes, int offset, int length,
                                     Charset charset) {
         CobolType dataType = primitive.dataType();
-        String dataTypeStr = dataType.toString().toUpperCase();
 
-        // ALPHANUMERIC / PIC X
-        if (dataTypeStr.contains("ALPHANUMERIC") || dataTypeStr.contains("STRING")) {
-            encodeAlphanumeric(element.getAsString(), recordBytes, offset, length, charset);
-            return;
-        }
-
-        // COMP-3 / PACKED DECIMAL
-        if (dataTypeStr.contains("COMP3") || dataTypeStr.contains("COMP-3") || dataTypeStr.contains("PACKED")) {
+        // COMP-3 / PACKED DECIMAL — check first (before generic Decimal)
+        if (CobrixHelper.isComp3(dataType)) {
             BigDecimal value = element.getAsBigDecimal();
             int scale = CobrixHelper.getScale(dataType);
             encodePackedDecimal(value, recordBytes, offset, length, scale);
@@ -146,34 +139,15 @@ public class Encoder {
         }
 
         // COMP / COMP-4 / BINARY
-        if (dataTypeStr.contains("COMP4") || dataTypeStr.contains("COMP-4")
-                || dataTypeStr.contains("BINARY")
-                || (dataTypeStr.contains("COMP") && !dataTypeStr.contains("COMP-1") && !dataTypeStr.contains("COMP-2")
-                && !dataTypeStr.contains("COMP-3") && !dataTypeStr.contains("COMP3"))) {
+        if (CobrixHelper.isCompBinary(dataType)) {
             long value = element.getAsLong();
             encodeBinaryInteger(value, recordBytes, offset, length);
             return;
         }
 
-        // COMP-1 -- 4-byte float
-        if (dataTypeStr.contains("COMP-1") || dataTypeStr.contains("COMP1") || dataTypeStr.contains("FLOAT")) {
-            float value = element.getAsFloat();
-            byte[] floatBytes = ByteBuffer.allocate(4).putFloat(value).array();
-            System.arraycopy(floatBytes, 0, recordBytes, offset, Math.min(4, length));
-            return;
-        }
-
-        // COMP-2 -- 8-byte double
-        if (dataTypeStr.contains("COMP-2") || dataTypeStr.contains("COMP2") || dataTypeStr.contains("DOUBLE")) {
-            double value = element.getAsDouble();
-            byte[] doubleBytes = ByteBuffer.allocate(8).putDouble(value).array();
-            System.arraycopy(doubleBytes, 0, recordBytes, offset, Math.min(8, length));
-            return;
-        }
-
-        // NUMERIC DISPLAY -- zoned decimal
-        if (dataTypeStr.contains("NUMERIC") || dataTypeStr.contains("DECIMAL")
-                || dataTypeStr.contains("INTEGER") || dataTypeStr.contains("INTEGRAL")) {
+        // Use Cobrix type hierarchy for remaining types
+        if (dataType instanceof za.co.absa.cobrix.cobol.parser.ast.datatype.Decimal) {
+            // Decimal without compact = zoned decimal (DISPLAY)
             BigDecimal value = element.getAsBigDecimal();
             int scale = CobrixHelper.getScale(dataType);
             boolean signed = CobrixHelper.isSigned(dataType);
@@ -181,7 +155,16 @@ public class Encoder {
             return;
         }
 
-        // Fallback: alphanumeric
+        if (dataType instanceof za.co.absa.cobrix.cobol.parser.ast.datatype.Integral) {
+            // Integral without compact = zoned numeric (DISPLAY)
+            BigDecimal value = element.getAsBigDecimal();
+            int scale = CobrixHelper.getScale(dataType);
+            boolean signed = CobrixHelper.isSigned(dataType);
+            encodeZonedDecimal(value, recordBytes, offset, length, scale, signed, charset);
+            return;
+        }
+
+        // ALPHANUMERIC / everything else
         encodeAlphanumeric(element.getAsString(), recordBytes, offset, length, charset);
     }
 
