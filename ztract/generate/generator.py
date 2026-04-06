@@ -8,7 +8,14 @@ from __future__ import annotations
 import random
 from typing import Iterator
 
-from ztract.generate.field_patterns import generate_value
+from ztract.generate.field_patterns import generate_edge_case_value, generate_value
+
+
+# ---------------------------------------------------------------------------
+# Edge-case cycling
+# ---------------------------------------------------------------------------
+
+_EDGE_CASE_CYCLE = ["zeros", "max", "negative"]
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +43,7 @@ def generate_records(
     count: int,
     codepage: str = "cp037",
     seed: int | None = None,
+    edge_cases: bool = False,
 ) -> Iterator[dict]:
     """Yield *count* mock records that conform to *schema*.
 
@@ -52,6 +60,9 @@ def generate_records(
     seed:
         Optional integer seed for reproducibility.  When provided both
         ``random`` and ``Faker`` are seeded before generation starts.
+    edge_cases:
+        When ``True``, every 100th record (0, 100, 200, ...) cycles
+        through boundary value types: zeros, max, negative.
 
     Yields
     ------
@@ -67,9 +78,33 @@ def generate_records(
         random.seed(seed)
 
     fields: list[dict] = schema.get("fields", [])
+    edge_case_index = 0
 
-    for _ in range(count):
+    for i in range(count):
         record: dict = {}
+
+        # Every 100th record is an edge case when enabled
+        use_edge = edge_cases and (i % 100 == 0)
+
+        if use_edge:
+            case_type = _EDGE_CASE_CYCLE[edge_case_index % len(_EDGE_CASE_CYCLE)]
+            edge_case_index += 1
+            for field_def in fields:
+                name = field_def.get("name", "")
+                if name.upper() == "FILLER":
+                    continue
+                if field_def.get("type", "").upper() == "GROUP":
+                    continue
+                record[name] = generate_edge_case_value(
+                    name,
+                    field_def.get("type", "ALPHANUMERIC"),
+                    int(field_def.get("size", 1)),
+                    int(field_def.get("scale", 0)),
+                    case=case_type,
+                )
+            yield record
+            continue
+
         for field_def in fields:
             name: str = field_def.get("name", "")
 

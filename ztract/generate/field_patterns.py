@@ -28,6 +28,7 @@ _ALPHA_PATTERNS: list[tuple[str, Callable]] = [
     (r"(COUNTRY|LAND)", lambda faker, size: faker.country()[:size]),
     (r"(DESC|TEXT|BESKR)", lambda faker, size: faker.sentence()[:size]),
     (r"(CODE|KODE)", lambda faker, size: faker.bothify("?" * min(size, 8))[:size]),
+    (r"^SEGMENT.ID$", lambda faker, size: random.choice(["CU", "AC", "PA"])[:size]),
 ]
 
 # Each entry is (pattern_str, lambda(faker, size, scale) -> int|float)
@@ -48,6 +49,7 @@ _NUMERIC_PATTERNS: list[tuple[str, Callable]] = [
         r"(ID|NR|NUM)",
         lambda f, sz, sc: random.randint(1, 10 ** min(sz, 9) - 1),
     ),
+    (r"LINE.COUNT", lambda f, sz, sc: random.randint(0, 10)),
 ]
 
 
@@ -161,3 +163,65 @@ def generate_value(
 
     # Unknown type — return blank string of correct width
     return " " * size
+
+
+def generate_edge_case_value(
+    field_name: str,
+    field_type: str,
+    size: int,
+    scale: int = 0,
+    case: str = "zeros",
+) -> str | int | float:
+    """Generate boundary/edge case values for testing.
+
+    Args:
+        field_name: COBOL field name.
+        field_type: COBOL type string.
+        size: Field width / maximum number of digits.
+        scale: Number of decimal places for numeric fields.
+        case: One of "zeros", "max", "negative", "low_values", "high_values"
+    """
+    ftype = field_type.upper()
+    is_alpha = "ALPHA" in ftype or ftype in ("ALPHANUMERIC", "ALPHA", "AN", "X")
+    is_numeric = (
+        "NUMERIC" in ftype or "DECIMAL" in ftype or "PACKED" in ftype
+        or "INTEGRAL" in ftype or ftype in ("NUMERIC", "NUM", "N", "9", "BINARY")
+    )
+
+    if case == "zeros":
+        if is_alpha:
+            return " " * size  # spaces (EBCDIC default)
+        return 0
+
+    elif case == "max":
+        if is_alpha:
+            return "Z" * size  # fill with character
+        max_val = 10 ** size - 1
+        if scale > 0:
+            return max_val / (10 ** scale)
+        return max_val
+
+    elif case == "negative":
+        if is_alpha:
+            return " " * size
+        if is_numeric:
+            max_val = 10 ** size - 1
+            if scale > 0:
+                return -(max_val / (10 ** scale))
+            return -max_val
+        return 0
+
+    elif case == "low_values":
+        if is_alpha:
+            return "\x00" * size  # null bytes
+        return 0
+
+    elif case == "high_values":
+        if is_alpha:
+            return "\xff" * size
+        max_val = 10 ** size - 1
+        if scale > 0:
+            return max_val / (10 ** scale)
+        return max_val
+
+    return generate_value(field_name, field_type, size, scale)

@@ -55,6 +55,12 @@ from ztract.writers.ebcdic import EBCDICWriter
     default=None,
     help="Random seed for reproducible output.",
 )
+@click.option(
+    "--edge-cases",
+    is_flag=True,
+    default=False,
+    help="Include boundary values every 100th record.",
+)
 @click.pass_context
 def generate(
     ctx: click.Context,
@@ -65,6 +71,7 @@ def generate(
     recfm: str,
     lrecl: int | None,
     seed: int | None,
+    edge_cases: bool = False,
 ) -> None:
     """Generate a synthetic mainframe EBCDIC binary file from a copybook.
 
@@ -133,6 +140,7 @@ def generate(
             count=record_count,
             codepage=resolved_codepage,
             seed=seed,
+            edge_cases=edge_cases,
         ):
             batch.append(record)
             tracker.update(task_id)
