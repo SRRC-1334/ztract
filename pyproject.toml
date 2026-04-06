@@ -4,9 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ztract"
-version = "0.1.0"
-description = "Extract mainframe EBCDIC binary files using COBOL copybooks"
+version = "0.1.0.dev1"
+description = "Extract mainframe EBCDIC binary files using real COBOL copybooks. Zero MIPS."
+readme = "README.md"
+license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
+authors = [
+    {name = "SRRC-1334", email = "srrc1334@users.noreply.github.com"},
+]
+keywords = [
+    "mainframe", "cobol", "ebcdic", "zos", "ibm", "mips",
+    "copybook", "parquet", "csv", "etl", "cobrix",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Database",
+]
 dependencies = [
     "click>=8.1",
     "pyyaml>=6.0",
@@ -34,6 +59,12 @@ dev = [
     "ruff>=0.1",
     "mypy>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SRRC-1334/ztract"
+Repository = "https://github.com/SRRC-1334/ztract"
+Issues = "https://github.com/SRRC-1334/ztract/issues"
+Documentation = "https://srrc-1334.github.io/ztract"
 
 [tool.setuptools.packages.find]
 where = ["."]
