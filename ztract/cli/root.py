@@ -3,6 +3,7 @@ import click
 
 from ztract import __version__
 from ztract.cli.convert import convert
+from ztract.cli.run import run
 
 
 @click.group()
@@ -18,3 +19,4 @@ def cli(ctx: click.Context, debug: bool, quiet: bool) -> None:
 
 
 cli.add_command(convert)
+cli.add_command(run)
