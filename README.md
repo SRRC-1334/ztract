@@ -7,6 +7,7 @@
   [![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen.svg?style=flat-square)](LICENSE)
   [![PyPI](https://img.shields.io/pypi/v/ztract?style=flat-square&color=brightgreen)](https://pypi.org/project/ztract)
   [![JRE](https://img.shields.io/badge/JRE-11+-brightgreen.svg?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net)
+  [![Docs](https://readthedocs.org/projects/ztract/badge/?version=latest&style=flat-square)](https://ztract.readthedocs.io)
 
   > **Status:** 0.1.0.dev1 -- active development
   > `pip install ztract==0.1.0.dev1` to try early
