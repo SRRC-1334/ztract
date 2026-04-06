@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
+from ztract.engine.download_engine import get_jar_path
+
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -48,11 +50,11 @@ class ZtractBridge:
 
     def __init__(
         self,
-        jar_path: Path,
+        jar_path: Path | None = None,
         jvm_max_heap: str = "512m",
         jvm_args: list[str] | None = None,
     ) -> None:
-        self.jar_path = Path(jar_path)
+        self.jar_path = Path(jar_path) if jar_path else get_jar_path()
         self.jvm_max_heap = jvm_max_heap
         self.jvm_args: list[str] = jvm_args or []
         self._cached_jre_version: str | None = None
