@@ -5,11 +5,11 @@
 
   [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
   [![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen.svg?style=flat-square)](LICENSE)
-  <!-- [![PyPI](https://img.shields.io/pypi/v/ztract?style=flat-square&color=brightgreen)](https://pypi.org/project/ztract) -->
+  [![PyPI](https://img.shields.io/pypi/v/ztract?style=flat-square&color=brightgreen)](https://pypi.org/project/ztract)
   [![JRE](https://img.shields.io/badge/JRE-11+-brightgreen.svg?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net)
-  <!-- [![CI](https://img.shields.io/github/actions/workflow/status/SRRC-1334/ztract/ci.yml?style=flat-square&label=CI&logo=github)](https://github.com/SRRC-1334/ztract/actions) -->
-> ⚡ **Status:** Active development · Phase 1 in progress ·
-> [Star the repo](https://github.com/SRRC-1334/ztract) to follow along
+
+  > **Status:** 0.1.0.dev1 -- active development
+  > `pip install ztract==0.1.0.dev1` to try early
   <br/>
 
   **Read any mainframe EBCDIC file on your laptop. Zero MIPS spent.**
