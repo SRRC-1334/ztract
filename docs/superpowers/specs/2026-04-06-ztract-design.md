@@ -276,16 +276,30 @@ z/OS FTP requires SITE commands in strict order before STOR:
 - Binary transfer
 - SSH key auth or password, configurable in connection profile
 - SFTP does NOT support SITE commands natively. z/OS SFTP dataset allocation is SMS-managed. Ztract SFTP connector uploads bytes only. Users needing explicit allocation control should use FTP.
+- Auto-formats z/OS MVS dataset names: `BEL.CUST.MASTER` -> `//'BEL.CUST.MASTER'`. USS paths (`/u/user/file`) pass through unchanged. Already-formatted paths (`//'...'`) pass through unchanged. PDS members supported: `HLQ.PDS(MEMBER)` -> `//'HLQ.PDS(MEMBER)'`.
 
 ### 3.5 ZoweConnector (`connectors/zowe.py`)
 
-- Shells out to Zowe CLI
-- Download: `zowe zos-files download data-set "DATASET" --binary`
+Two backends supported:
+
+**zosmf (default):** Uses `zos-files` commands, requires z/OSMF server.
+- Download: `zowe zos-files download data-set "DATASET" --binary --zosmf-profile PROD`
 - Upload: `zowe zos-files upload file-to-data-set`
-- Uses Zowe CLI profile name from YAML config or `--zowe-profile` flag
-- Version detection: parse `zowe --version`, use correct command syntax per version
-- Raise clear error if Zowe CLI not on PATH or version < 2 (v1 is EOL)
-- Store detected Zowe version in audit log
+- Profile flag: `--zosmf-profile`
+
+**zftp:** Uses `zos-ftp` commands via the `@zowe/zos-ftp-for-zowe-cli` plugin. No z/OSMF needed — only FTP access.
+- Download: `zowe zos-ftp download data-set "DATASET" --binary --zftp-profile PROD`
+- Upload: `zowe zos-ftp upload file-to-data-set` with optional `--dcb "RECFM=FB LRECL=500"` for allocation
+- Profile flag: `--zftp-profile`
+- Plugin check: `check_zowe()` verifies plugin installed, raises with install instructions if missing
+
+Transfer modes (both backends):
+- `binary` (default): `--binary` flag, raw EBCDIC bytes
+- `text`: no flag, server-side EBCDIC-to-ASCII conversion
+- `encoding`: `--encoding cp277` flag, specific codepage conversion
+- `record`: `--rdw` flag (zftp only), VB files with RDW headers preserved
+
+Version detection: parse `zowe --version`, reject v1 (EOL). Store detected version in audit log.
 
 ### 3.6 Dataset Format Module (`connectors/dataset_format.py`)
 

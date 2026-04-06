@@ -1,0 +1,93 @@
+# Ztract
+> Extract mainframe EBCDIC binary files using real
+> COBOL copybooks. Zero MIPS. pip install ztract.
+
+Ztract is a Python 3.10+ CLI tool that decodes
+IBM mainframe EBCDIC binary files into CSV, JSON
+Lines, Parquet, or database tables using COBOL
+copybooks as the schema. The Java engine (Cobrix
+cobol-parser) handles all binary decoding. Python
+handles connectivity, orchestration, and output.
+
+## CLI Commands
+
+ztract convert  --copybook FILE.cpy --input DATA.DAT
+                --recfm FB --lrecl 500 --codepage cp277
+                --output out.csv
+
+ztract diff     --copybook FILE.cpy --before A.DAT
+                --after B.DAT --key FIELD-NAME
+
+ztract generate --copybook FILE.cpy --records 10000
+                --codepage cp277 --seed 42
+                --output MOCK.DAT
+
+ztract inspect  --copybook FILE.cpy
+ztract validate --copybook FILE.cpy --input DATA.DAT
+ztract run      job.yaml
+ztract init
+ztract status
+
+## Record Formats
+F, FB, V, VB, FBA, VBA
+
+## EBCDIC Code Pages
+cp277 (Norway/Denmark — primary), cp037 (USA default),
+cp273 (Germany), cp875 (Greece), cp870 (Eastern Europe),
+cp1047 (Latin-1), cp838 (Thailand), cp1025 (Cyrillic)
+Aliases: --codepage norway = cp277
+
+## Connectivity (input and output)
+local:  --input ./FILE.DAT
+ftp:    --input ftp://user:pass@host/DATASET
+sftp:   --input sftp://user@host/DATASET
+zowe:   --zowe-profile PROD --dataset HLQ.DATASET
+
+## YAML Pipeline Format
+version: "1.0"
+job:
+  name: my-extract
+connections:
+  prod: &prod
+    type: ftp
+    host: mf01.bank.com
+    user: ${FTP_USER}
+    password: ${FTP_PASS}
+    transfer_mode: binary
+steps:
+  - name: extract
+    action: convert
+    input:
+      connection: *prod
+      dataset: HLQ.CUST.MASTER
+      record_format: FB
+      lrecl: 500
+      codepage: cp277
+    copybook: ./CUSTMAST.cpy
+    output:
+      - type: csv
+        path: ./output/customers.csv
+      - type: parquet
+        path: ./output/customers.parquet
+
+## Output Targets
+csv, jsonl, parquet,
+postgresql://, mysql://, mssql://,
+ftp://, sftp://
+
+## Java Engine
+Requires JRE 11+ on PATH. JAR bundled in package.
+java -version to verify.
+
+## Installation
+pip install ztract
+pip install ztract[postgres]   # PostgreSQL
+pip install ztract[mysql]      # MySQL
+pip install ztract[mssql]      # SQL Server
+
+## Attribution
+Built on Cobrix by AbsaOSS (Apache 2.0).
+https://github.com/AbsaOSS/cobrix
+
+## Source
+https://github.com/SRRC-1334/ztract

@@ -377,7 +377,12 @@ Use the alias anywhere a codepage is expected: `--codepage norway` or `--codepag
 | Local file | `--input ./CUST.DAT` |
 | FTP | `--input ftp://user:pass@mf01.bank.com/BEL.CUST.DATA` |
 | SFTP | `--input sftp://user@mf01.bank.com/BEL.CUST.DATA` |
-| Zowe | `--zowe-profile MYPROD --dataset BEL.CUST.DATA` |
+| Zowe (z/OSMF) | `--zowe-profile MYPROD --dataset BEL.CUST.DATA` |
+| Zowe (zftp) | `--zowe-profile MYPROD --zowe-backend zftp --dataset BEL.CUST.DATA` |
+
+**Zowe transfer modes:** `binary` (default), `text`, `encoding`, `record` (zftp only, preserves VB RDW headers).
+
+**SFTP z/OS paths:** MVS dataset names are auto-formatted (`BEL.CUST.DATA` -> `//'BEL.CUST.DATA'`). USS paths pass through unchanged.
 
 Credentials support `${ENV_VAR}` interpolation in YAML. Passwords never hardcoded.
 
