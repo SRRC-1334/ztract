@@ -3,6 +3,7 @@ import click
 
 from ztract import __version__
 from ztract.cli.convert import convert
+from ztract.cli.diff import diff
 from ztract.cli.run import run
 
 
@@ -19,4 +20,5 @@ def cli(ctx: click.Context, debug: bool, quiet: bool) -> None:
 
 
 cli.add_command(convert)
+cli.add_command(diff)
 cli.add_command(run)
