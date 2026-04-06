@@ -2,6 +2,7 @@
 import click
 
 from ztract import __version__
+from ztract.cli.convert import convert
 
 
 @click.group()
@@ -14,3 +15,6 @@ def cli(ctx: click.Context, debug: bool, quiet: bool) -> None:
     ctx.ensure_object(dict)
     ctx.obj["debug"] = debug
     ctx.obj["quiet"] = quiet
+
+
+cli.add_command(convert)
