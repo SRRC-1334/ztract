@@ -1,0 +1,53 @@
+site_name: Ztract
+site_description: Extract mainframe EBCDIC binary files using real COBOL copybooks. Zero MIPS.
+site_url: https://ztract.readthedocs.io
+repo_url: https://github.com/SRRC-1334/ztract
+repo_name: SRRC-1334/ztract
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: green
+    accent: light green
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quick Start: quickstart.md
+  - Commands: commands.md
+  - Connectors: connectors.md
+  - EBCDIC Code Pages: codepages.md
+  - YAML Pipelines: yaml-pipelines.md
+  - Copybooks: copybooks.md
+  - Contributing: contributing.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/SRRC-1334/ztract
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/ztract/

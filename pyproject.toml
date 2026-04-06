@@ -64,7 +64,7 @@ dev = [
 Homepage = "https://github.com/SRRC-1334/ztract"
 Repository = "https://github.com/SRRC-1334/ztract"
 Issues = "https://github.com/SRRC-1334/ztract/issues"
-Documentation = "https://srrc-1334.github.io/ztract"
+Documentation = "https://ztract.readthedocs.io"
 
 [tool.setuptools.packages.find]
 where = ["."]
