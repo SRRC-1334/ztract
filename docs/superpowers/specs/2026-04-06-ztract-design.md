@@ -908,22 +908,25 @@ Central mapping of friendly aliases to canonical Cobrix codepage names.
 | pyarrow | Parquet output | Apache 2.0 |
 | sqlalchemy | Database abstraction | MIT |
 | psycopg2-binary | PostgreSQL driver | LGPL |
-| mysql-connector-python | MySQL driver | GPL (optional) |
+| pymysql | MySQL driver (default) | MIT |
 | pyodbc | SQL Server driver | MIT |
 | paramiko | SFTP connectivity | LGPL 2.1 |
 | faker | Mock data generation | MIT |
 | rich | Console output, progress, diff display | MIT |
-| daff | Table diff engine | MIT |
+| daff | Table diff engine | Apache 2.0 |
 | multidiff | Binary hex diff | MIT |
 
 Optional dependency groups:
 - `[postgres]`: psycopg2-binary
-- `[mysql]`: mysql-connector-python
+- `[mysql-mit]`: pymysql (MIT, recommended)
+- `[mysql-gpl]`: mysql-connector-python (GPL, Oracle official — see license note below)
 - `[mssql]`: pyodbc
-- `[all-db]`: all three
+- `[all-db]`: psycopg2-binary + pymysql + pyodbc (all Apache 2.0 compatible)
 - `[dev]`: pytest, pytest-cov, ruff, mypy
 
-All licenses compatible with Apache 2.0.
+**MySQL license note:** mysql-connector-python is GPL licensed, which is incompatible with Apache 2.0 for distribution. PyMySQL (MIT) is the default and recommended MySQL driver. If you require the Oracle official driver, install it explicitly via `pip install ztract[mysql-gpl]` and ensure GPL compliance in your deployment.
+
+All core and default optional dependencies are Apache 2.0 compatible.
 
 ### 12.2 JAR Distribution
 
@@ -1048,6 +1051,28 @@ ztract/
 - Integration tests: pytest with JRE (matrix: JRE 11, 17, 21)
 - JAR build verification: Maven build from source, compare to committed JAR
 - Platforms: Ubuntu, Windows, macOS
+
+### 12.7 Distribution Strategy
+
+**Phase 1: pip only**
+```
+pip install ztract
+```
+Primary users are DBAs on Windows laptops — pip is strictly lower friction than Docker for this audience. JRE 11+ is the only external prerequisite.
+
+**Phase 2: Docker (CI/CD and server use)**
+```
+docker pull srrc1334/ztract
+```
+Target scenarios: CI/CD pipelines and server deployments where JRE setup is the friction point.
+
+Dockerfile: `FROM eclipse-temurin:17-jre-alpine` + `pip install ztract`. Simple, small image.
+
+Docker is NOT recommended for primary local PC use due to:
+- Volume mount friction for local files
+- FTP/SFTP network complexity from inside containers
+- Zowe CLI profile access issues
+- Degraded rich terminal output
 
 ---
 
