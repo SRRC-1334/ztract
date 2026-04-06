@@ -1,4 +1,16 @@
-"""Zowe CLI connector for mainframe dataset operations."""
+"""Zowe CLI connector for mainframe dataset operations.
+
+Supports two backends:
+- **zosmf** (default): uses ``zos-files`` commands, requires z/OSMF.
+- **zftp**: uses ``zos-ftp`` commands via the ``@zowe/zos-ftp-for-zowe-cli``
+  plugin. Does not require z/OSMF — only FTP access to z/OS.
+
+Transfer modes:
+- ``binary``: raw EBCDIC bytes (default for Ztract).
+- ``text``: server-side EBCDIC-to-ASCII conversion.
+- ``encoding``: conversion to a specific codepage.
+- ``record``: VB files with RDW headers preserved (zftp only).
+"""
 from __future__ import annotations
 
 import logging
@@ -21,30 +33,46 @@ class ZoweConnector(Connector):
     Parameters
     ----------
     profile:
-        Zowe profile name to pass to every command via ``--zosmf-profile``.
+        Zowe profile name passed via ``--zosmf-profile`` or ``--zftp-profile``.
+    backend:
+        ``"zosmf"`` (default) or ``"zftp"``.
+    transfer_mode:
+        ``"binary"`` (default), ``"text"``, ``"encoding"``, or ``"record"``.
+    encoding:
+        Codepage name used when *transfer_mode* is ``"encoding"``
+        (e.g. ``"cp277"``).
     """
 
-    def __init__(self, profile: str) -> None:
+    def __init__(
+        self,
+        profile: str,
+        backend: str = "zosmf",
+        transfer_mode: str = "binary",
+        encoding: str | None = None,
+    ) -> None:
         self.profile = profile
+        self.backend = backend
+        self.transfer_mode = transfer_mode
+        self.encoding = encoding
+        self._zowe_version: str | None = None
         self.check_zowe()
 
     # ------------------------------------------------------------------
-    # Zowe version guard
+    # Zowe version + backend guard
     # ------------------------------------------------------------------
 
-    def check_zowe(self) -> str:
-        """Verify Zowe CLI is installed and is at least v2.
+    def check_zowe(self) -> dict:
+        """Verify Zowe CLI is installed (v2+) and backend is available.
 
         Returns
         -------
-        str
-            The major version string (e.g. ``"3"``).
+        dict
+            ``{"zowe_version": "3", "backend": "zosmf"}`` (or ``"zftp"``).
 
         Raises
         ------
         ZoweError
-            If the ``zowe`` executable is not found, returns a non-zero exit
-            code, or is older than v2.
+            If the CLI is missing, too old, or the zftp plugin is not installed.
         """
         try:
             result = subprocess.run(
@@ -53,13 +81,11 @@ class ZoweConnector(Connector):
                 text=True,
             )
         except FileNotFoundError as exc:
-            raise ZoweError("Zowe CLI not found — install it with 'npm install -g @zowe/cli'") from exc
-        except subprocess.CalledProcessError as exc:
-            raise ZoweError(f"Zowe CLI error: {exc}") from exc
+            raise ZoweError(
+                "Zowe CLI not found — install it with 'npm install -g @zowe/cli'"
+            ) from exc
 
         output = result.stdout.strip()
-        # Output format: "@zowe-cli/core/3.0.0 linux-x64 node-v18.0.0"
-        # or just "3.0.0" depending on version
         match = re.search(r"(\d+)\.\d+\.\d+", output)
         if not match:
             raise ZoweError(f"Could not parse Zowe version from: {output!r}")
@@ -71,24 +97,94 @@ class ZoweConnector(Connector):
                 "Upgrade with 'npm install -g @zowe/cli'."
             )
 
-        return str(major)
+        self._zowe_version = str(major)
+        info: dict = {"zowe_version": str(major), "backend": self.backend}
+
+        if self.backend == "zftp":
+            self._check_zftp_plugin()
+            info["zftp_plugin"] = "installed"
+
+        return info
+
+    def _check_zftp_plugin(self) -> None:
+        """Verify the zos-ftp plugin is installed."""
+        try:
+            result = subprocess.run(
+                ["zowe", "plugins", "list"],
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError as exc:
+            raise ZoweError("Zowe CLI not found on PATH") from exc
+
+        if "zos-ftp" not in result.stdout:
+            raise ZoweError(
+                "zftp backend requires the zos-ftp plugin. "
+                "Install with: zowe plugins install @zowe/zos-ftp-for-zowe-cli@latest"
+            )
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Command builders
     # ------------------------------------------------------------------
 
-    def _run(self, args: list[str], check_returncode: bool = True) -> subprocess.CompletedProcess:
+    def _cmd_group(self) -> str:
+        """Return the Zowe command group for the active backend."""
+        return "zos-ftp" if self.backend == "zftp" else "zos-files"
+
+    def _profile_flag(self) -> list[str]:
+        """Return the profile CLI flag pair for the active backend."""
+        if not self.profile:
+            return []
+        if self.backend == "zftp":
+            return ["--zftp-profile", self.profile]
+        return ["--zosmf-profile", self.profile]
+
+    def _transfer_args(self, direction: str = "download") -> list[str]:
+        """Return CLI flags for the configured transfer mode.
+
+        Parameters
+        ----------
+        direction:
+            ``"download"`` or ``"upload"``.
+
+        Raises
+        ------
+        ValueError
+            If *transfer_mode* is ``"record"`` but backend is not ``"zftp"``.
+        """
+        if self.transfer_mode == "binary":
+            return ["--binary"]
+        if self.transfer_mode == "text":
+            return []  # default mode, no extra flag
+        if self.transfer_mode == "encoding":
+            if not self.encoding:
+                raise ValueError(
+                    "transfer_mode='encoding' requires an encoding value "
+                    "(e.g. encoding='cp277')"
+                )
+            return ["--encoding", self.encoding]
+        if self.transfer_mode == "record":
+            if self.backend != "zftp":
+                raise ValueError(
+                    "transfer_mode='record' requires backend='zftp'. "
+                    "z/OSMF does not support RDW mode."
+                )
+            return ["--rdw"]
+        return []
+
+    def _run(
+        self, args: list[str], check_returncode: bool = True
+    ) -> subprocess.CompletedProcess:
         """Run a ``zowe`` command and optionally raise on failure."""
-        cmd = ["zowe"] + args
-        if self.profile:
-            cmd += ["--zosmf-profile", self.profile]
+        cmd = ["zowe"] + args + self._profile_flag()
 
         logger.debug("Running: %s", " ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if check_returncode and result.returncode != 0:
             raise ZoweError(
-                f"Zowe command failed (rc={result.returncode}): {result.stderr.strip()}"
+                f"Zowe command failed (rc={result.returncode}): "
+                f"{result.stderr.strip()}"
             )
         return result
 
@@ -97,31 +193,21 @@ class ZoweConnector(Connector):
     # ------------------------------------------------------------------
 
     def download(self, source: str, local_path: str) -> Path:
-        """Download *source* dataset using ``zowe zos-files download data-set``.
+        """Download *source* dataset via Zowe CLI.
 
-        Always passes ``--binary`` to preserve mainframe byte content.
-
-        Parameters
-        ----------
-        source:
-            Mainframe dataset name (e.g. ``HLQ.MY.DATASET``).
-        local_path:
-            Local path to write the downloaded file.
-
-        Returns
-        -------
-        Path
-            The resolved local path.
+        Uses the configured backend (``zos-files`` or ``zos-ftp``) and
+        transfer mode (``--binary``, ``--encoding``, ``--rdw``, or none).
         """
         dest = Path(local_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
 
-        self._run([
-            "zos-files", "download", "data-set",
+        args = [
+            self._cmd_group(), "download", "data-set",
             source,
             "--file", str(dest),
-            "--binary",
-        ])
+        ] + self._transfer_args("download")
+
+        self._run(args)
         return dest
 
     def upload(
@@ -129,8 +215,9 @@ class ZoweConnector(Connector):
         local_path: str,
         destination: str,
         site_commands: dict | None = None,
+        dcb: str | None = None,
     ) -> None:
-        """Upload *local_path* using ``zowe zos-files upload file-to-data-set``.
+        """Upload *local_path* to *destination* dataset via Zowe CLI.
 
         Parameters
         ----------
@@ -139,31 +226,32 @@ class ZoweConnector(Connector):
         destination:
             Target mainframe dataset name.
         site_commands:
-            Optional dict of allocation attributes forwarded as CLI flags
-            (e.g. ``{"recfm": "FB"}`` → ``--record-format FB``).
-            Currently stored for future extension; not all attributes map to
-            Zowe CLI flags for every version.
+            Optional allocation attributes (currently unused by Zowe CLI).
+        dcb:
+            DCB allocation string for zftp backend
+            (e.g. ``"RECFM=FB LRECL=500 BLKSIZE=27920"``).
         """
-        args = ["zos-files", "upload", "file-to-data-set", local_path, destination]
+        args = [
+            self._cmd_group(), "upload", "file-to-data-set",
+            local_path, destination,
+        ] + self._transfer_args("upload")
+
+        if self.backend == "zftp" and dcb:
+            args += ["--dcb", dcb]
+
         self._run(args)
 
     def exists(self, source: str) -> bool:
         """Return ``True`` if *source* dataset exists on the mainframe."""
         result = self._run(
-            ["zos-files", "list", "data-set", source],
+            [self._cmd_group(), "list", "data-set", source],
             check_returncode=False,
         )
         return result.returncode == 0
 
     def list_datasets(self, pattern: str) -> list[str]:
-        """Return dataset names matching *pattern*.
-
-        Parameters
-        ----------
-        pattern:
-            Dataset name pattern (e.g. ``HLQ.DATA.*``).
-        """
-        result = self._run(["zos-files", "list", "data-set", pattern])
+        """Return dataset names matching *pattern*."""
+        result = self._run([self._cmd_group(), "list", "data-set", pattern])
         output = result.stdout.strip()
         if not output:
             return []
