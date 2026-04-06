@@ -107,14 +107,22 @@ public class Encoder {
 
                 // Write the record
                 if (isVariable) {
-                    int totalLength = recordLength + 4;
+                    // VB: compute actual content length (trim trailing EBCDIC spaces)
+                    int actualLen = recordLength;
+                    while (actualLen > 0 && recordBytes[actualLen - 1] == EBCDIC_SPACE) {
+                        actualLen--;
+                    }
+                    // Minimum 1 byte of content to avoid zero-length records
+                    if (actualLen == 0) actualLen = 1;
+                    int totalLength = actualLen + 4; // RDW includes itself
                     dos.writeByte((totalLength >> 8) & 0xFF);
                     dos.writeByte(totalLength & 0xFF);
                     dos.writeByte(0);
                     dos.writeByte(0);
+                    dos.write(recordBytes, 0, actualLen);
+                } else {
+                    dos.write(recordBytes);
                 }
-
-                dos.write(recordBytes);
                 recordCount++;
             }
 

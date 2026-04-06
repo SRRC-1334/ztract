@@ -177,7 +177,7 @@ class ZtractBridge:
         if lrecl is not None:
             cmd += ["--lrecl", str(lrecl)]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace")
         if result.returncode != 0:
             raise EngineError(
                 f"Engine exited {result.returncode}: {result.stderr.strip()}"
@@ -249,10 +249,11 @@ class ZtractBridge:
             "--copybook", str(copybook),
             "--output", str(output_path),
             "--recfm", recfm,
-            "--lrecl", str(lrecl),
             "--codepage", codepage,
             "--encoding", encoding,
         ]
+        if lrecl is not None:
+            cmd += ["--lrecl", str(lrecl)]
 
         count = 0
         with subprocess.Popen(
@@ -306,7 +307,7 @@ class ZtractBridge:
             "--sample", str(sample),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace")
         if result.returncode != 0:
             raise EngineError(
                 f"Engine exited {result.returncode}: {result.stderr.strip()}"

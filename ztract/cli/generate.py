@@ -115,12 +115,15 @@ def generate(
     # ------------------------------------------------------------------
     # 4. Build EBCDIC writer
     # ------------------------------------------------------------------
+    # Use schema record length as default if lrecl not specified
+    effective_lrecl = lrecl or schema.get("record_length")
+
     writer = EBCDICWriter(
         output_path=output,
         bridge=bridge,
         copybook=Path(copybook),
         recfm=recfm,
-        lrecl=lrecl,
+        lrecl=effective_lrecl,
         codepage=resolved_codepage,
     )
     writer.open(schema)
