@@ -5,7 +5,11 @@ from ztract import __version__
 from ztract.cli.convert import convert
 from ztract.cli.diff import diff
 from ztract.cli.generate import generate
+from ztract.cli.init import init
+from ztract.cli.inspect import inspect
 from ztract.cli.run import run
+from ztract.cli.status import status
+from ztract.cli.validate import validate
 
 
 @click.group()
@@ -23,4 +27,8 @@ def cli(ctx: click.Context, debug: bool, quiet: bool) -> None:
 cli.add_command(convert)
 cli.add_command(diff)
 cli.add_command(generate)
+cli.add_command(init)
+cli.add_command(inspect)
 cli.add_command(run)
+cli.add_command(status)
+cli.add_command(validate)
