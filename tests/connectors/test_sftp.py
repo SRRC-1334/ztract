@@ -159,3 +159,33 @@ class TestSFTPConnectorClose:
         conn._sftp = None
         conn._transport = None
         conn.close()  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# z/OS path formatting
+# ---------------------------------------------------------------------------
+
+class TestZosPathFormatting:
+    """Test _format_zos_path static method for z/OS MVS dataset names."""
+
+    def test_uss_path_unchanged(self):
+        assert SFTPConnector._format_zos_path("/u/user/myfile") == "/u/user/myfile"
+
+    def test_already_formatted_unchanged(self):
+        assert SFTPConnector._format_zos_path("//'BEL.CUST.MASTER'") == "//'BEL.CUST.MASTER'"
+
+    def test_mvs_dataset_wrapped(self):
+        assert SFTPConnector._format_zos_path("BEL.CUST.MASTER") == "//'BEL.CUST.MASTER'"
+
+    def test_mvs_dataset_uppercased(self):
+        assert SFTPConnector._format_zos_path("bel.cust.master") == "//'BEL.CUST.MASTER'"
+
+    def test_pds_member_wrapped(self):
+        assert (
+            SFTPConnector._format_zos_path("BEL.CUST.COPYLIB(CUSTMAST)")
+            == "//'BEL.CUST.COPYLIB(CUSTMAST)'"
+        )
+
+    def test_single_hlq_no_dot_unchanged(self):
+        # Single word with no dot — ambiguous, pass through
+        assert SFTPConnector._format_zos_path("MYFILE") == "MYFILE"

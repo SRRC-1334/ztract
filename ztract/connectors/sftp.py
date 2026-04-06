@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import warnings
 from pathlib import Path
 
@@ -47,6 +48,37 @@ class SFTPConnector(Connector):
         self._sftp = self._connect()
 
     # ------------------------------------------------------------------
+    # z/OS path formatting
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _format_zos_path(source: str) -> str:
+        """Format a source path for z/OS SFTP access.
+
+        USS paths (start with ``/``): pass through unchanged.
+            ``/u/user/myfile`` -> ``/u/user/myfile``
+
+        MVS dataset names (no leading ``/``): wrap in ``//'...'``.
+            ``BEL.CUST.MASTER`` -> ``//'BEL.CUST.MASTER'``
+            ``BEL.CUST.COPYLIB(CUSTMAST)`` -> ``//'BEL.CUST.COPYLIB(CUSTMAST)'``
+
+        Already formatted (start with ``//``): pass through unchanged.
+            ``//'BEL.CUST.MASTER'`` -> ``//'BEL.CUST.MASTER'``
+        """
+        # Already a USS path or already formatted
+        if source.startswith("/"):
+            return source
+
+        # MVS dataset pattern: HLQ.SECOND.THIRD or HLQ.PDS(MEMBER)
+        # Must contain at least one dot or parenthesis to be recognized
+        mvs_pattern = r"^[A-Z0-9#$@][\w#$@.\-]{0,43}(\([A-Z0-9#$@]{1,8}\))?$"
+        if re.match(mvs_pattern, source.upper()) and ("." in source or "(" in source):
+            return f"//'{source.upper()}'"
+
+        # Fallback — pass through as-is (single-word names, ambiguous)
+        return source
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
@@ -85,8 +117,9 @@ class SFTPConnector(Connector):
         """
         dest = Path(local_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
+        remote = self._format_zos_path(source)
         assert self._sftp is not None
-        self._sftp.get(source, str(dest))
+        self._sftp.get(remote, str(dest))
         return dest
 
     def upload(
@@ -116,8 +149,9 @@ class SFTPConnector(Connector):
                 UserWarning,
                 stacklevel=2,
             )
+        remote = self._format_zos_path(destination)
         assert self._sftp is not None
-        self._sftp.put(local_path, destination)
+        self._sftp.put(local_path, remote)
 
     def exists(self, source: str) -> bool:
         """Return ``True`` if *source* exists on the SFTP server.
@@ -125,8 +159,9 @@ class SFTPConnector(Connector):
         Uses ``sftp.stat()`` — any I/O error is treated as "not found".
         """
         try:
+            remote = self._format_zos_path(source)
             assert self._sftp is not None
-            self._sftp.stat(source)
+            self._sftp.stat(remote)
             return True
         except (FileNotFoundError, IOError, OSError):
             return False
