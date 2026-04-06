@@ -75,6 +75,7 @@ def get_generator(
         for pattern, gen in _ALPHA_PATTERNS:
             if re.search(pattern, name_upper):
                 return gen
+        return None  # alpha type — never match numeric patterns
 
     if "NUMERIC" in ftype or "DECIMAL" in ftype or "PACKED" in ftype or "INTEGRAL" in ftype or ftype in ("NUMERIC", "NUM", "N", "9", "BINARY"):
         for pattern, gen in _NUMERIC_PATTERNS:

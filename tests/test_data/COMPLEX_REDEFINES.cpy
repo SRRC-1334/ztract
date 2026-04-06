@@ -17,11 +17,11 @@
                    15  ACCT-LIMIT      PIC S9(11)V99 COMP-3.
                    15  ACCT-OPEN-DATE  PIC 9(8).
                    15  ACCT-BRANCH     PIC X(10).
-                   15  FILLER          PIC X(155).
+                   15  FILLER          PIC X(164).
                10  PAYMENT-SEGMENT REDEFINES CUSTOMER-SEGMENT.
                    15  PAY-AMOUNT      PIC S9(11)V99 COMP-3.
                    15  PAY-CURRENCY    PIC X(3).
                    15  PAY-REF         PIC X(20).
                    15  PAY-STATUS      PIC X(1).
                    15  PAY-VALUE-DATE  PIC 9(8).
-                   15  FILLER          PIC X(158).
+                   15  FILLER          PIC X(161).
