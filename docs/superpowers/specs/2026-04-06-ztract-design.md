@@ -548,7 +548,29 @@ Dict mapping regex patterns to generator functions. Patterns match against COBOL
 | `*ID*`, `*NR*`, `*NUM*` | sequential or random integer |
 | (fallback) | random digits to PIC size |
 
+Additional patterns:
+
+| Pattern | Generator |
+|---------|-----------|
+| `SEGMENT.ID` | cycles through `["CU", "AC", "PA"]` |
+| `LINE.COUNT` | random int 0-10 (controls OCCURS DEPENDING ON) |
+
 Values truncated/padded to fit PIC size. Strings padded to exact PIC X length, numbers capped to PIC 9 digit count. Norwegian/Danish field name patterns included by default.
+
+### 7.3 Edge Case Generation
+
+When `--edge-cases` flag is set, every 100th record (0, 100, 200, ...) cycles through boundary value types:
+
+| Cycle | Type | Alpha fields | Numeric fields |
+|-------|------|-------------|----------------|
+| 0 | zeros | spaces | 0 |
+| 1 | max | `"ZZZ..."` fill | 10^size - 1 |
+| 2 | negative | spaces | -(10^size - 1) for signed |
+
+Complex copybooks for edge case testing are provided in `tests/test_data/`:
+- `COMPLEX_REDEFINES.cpy` — 3-way REDEFINES (customer/account/payment segments)
+- `COMPLEX_OCCURS.cpy` — OCCURS DEPENDING ON with nested line items
+- `COMPLEX_NUMERIC.cpy` — every numeric type (DISPLAY, COMP-3, COMP signed/unsigned/decimal)
 
 ---
 
@@ -602,6 +624,7 @@ ztract generate \
   --copybook CUST.cpy \
   --records 100000 \
   --output CUST_MOCK.DAT \
+  --edge-cases \
   --codepage cp277 --recfm FB --lrecl 500 \
   --seed 42 --occurs-max 5
 ```

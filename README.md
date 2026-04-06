@@ -222,6 +222,20 @@ ztract generate \
   --output   CUST_MOCK.DAT
 ```
 
+### Generate with boundary value edge cases
+
+```bash
+ztract generate \
+  --copybook COMPLEX_NUMERIC.cpy \
+  --records  1000 \
+  --edge-cases \
+  --seed     42 \
+  --recfm    FB  --lrecl 300 \
+  --output   NUMERIC_TEST.DAT
+```
+
+With `--edge-cases`, every 100th record cycles through boundary values: all zeros, all max values, all negatives. Catches encoding bugs that normal random data misses.
+
 Norwegian field names automatically detected (NAVN, ADRESSE, TELEFON, BY) — generates realistic Scandinavian test data with valid packed decimal, correct EBCDIC encoding, and reproducible output.
 
 ---
