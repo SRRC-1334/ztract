@@ -10,6 +10,30 @@ from rich.table import Table
 from ztract.engine.bridge import ZtractBridge
 
 
+def _clean_usage(raw_usage: str, field_type: str) -> str:
+    """Convert Scala toString() usage to clean display name."""
+    if not raw_usage:
+        return "DISPLAY"
+    lower = raw_usage.lower()
+    if lower.startswith("decimal") and "comp-3" in lower:
+        return "COMP-3"
+    if lower.startswith("decimal"):
+        return "DISPLAY"
+    if lower.startswith("integral"):
+        return "DISPLAY"
+    if lower.startswith("alphanumeric"):
+        return "DISPLAY"
+    if "comp-1" in lower:
+        return "COMP-1"
+    if "comp-2" in lower:
+        return "COMP-2"
+    if "comp-4" in lower or "comp" in lower:
+        return "COMP"
+    if field_type == "GROUP":
+        return ""
+    return raw_usage
+
+
 @click.command()
 @click.option("--copybook", required=True, type=click.Path(exists=True), help="Path to the COBOL copybook file.")
 @click.pass_context
@@ -47,7 +71,10 @@ def inspect(ctx: click.Context, copybook: str) -> None:
         pic = field_def.get("pic", "")
         offset = str(field_def.get("offset", ""))
         size = field_def.get("size", "")
-        usage = field_def.get("usage", "DISPLAY")
+        raw_usage = field_def.get("usage", "DISPLAY")
+
+        # Clean up Scala toString() output to friendly usage names
+        usage = _clean_usage(raw_usage, field_def.get("type", ""))
 
         if usage and usage != "DISPLAY":
             size_str = f"{size} ({usage})"
