@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        java-version: ["11", "17", "21"]
+        exclude:
+          # Reduce matrix — only test all Java versions on Ubuntu
+          - os: windows-latest
+            java-version: "11"
+          - os: windows-latest
+            java-version: "21"
+          - os: macos-latest
+            java-version: "11"
+          - os: macos-latest
+            java-version: "21"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up JRE ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check ztract/ tests/
+
+      - name: Type check
+        run: mypy ztract/ --ignore-missing-imports
+
+      - name: Unit tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Verify Norwegian cp277 round-trip (Windows)
+        if: matrix.os == 'windows-latest'
+        run: python -c "from ztract.codepages import resolve_codepage; assert resolve_codepage('norway') == 'cp277'; print('cp277 OK')"
+
+  jar-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute JAR SHA256
+        run: |
+          echo "JAR_SHA=$(sha256sum ztract/engine/ztract-engine.jar | cut -d' ' -f1)" >> $GITHUB_ENV
+          sha256sum ztract/engine/ztract-engine.jar
+
+      - name: Verify JAR exists and is non-empty
+        run: |
+          test -f ztract/engine/ztract-engine.jar
+          test -s ztract/engine/ztract-engine.jar
+          echo "JAR size: $(wc -c < ztract/engine/ztract-engine.jar) bytes"
+
+  jar-build-verify:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.title, 'jar') || contains(github.event.pull_request.title, 'JAR') || contains(github.event.pull_request.title, 'engine') || contains(github.event.pull_request.title, 'cobrix')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+
+      - name: Build JAR from source
+        run: cd engine-java && mvn clean package -q
+
+      - name: Compare built JAR to committed JAR
+        run: |
+          BUILT_SHA=$(sha256sum engine-java/target/ztract-engine-0.1.0.jar | cut -d' ' -f1)
+          COMMITTED_SHA=$(sha256sum ztract/engine/ztract-engine.jar | cut -d' ' -f1)
+          echo "Built:     $BUILT_SHA"
+          echo "Committed: $COMMITTED_SHA"
+          if [ "$BUILT_SHA" != "$COMMITTED_SHA" ]; then
+            echo "::warning::Built JAR does not match committed JAR. If you modified engine-java/, update the committed JAR with 'make rebuild-jar'."
+          fi

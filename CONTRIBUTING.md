@@ -1,36 +1,81 @@
 # Contributing to Ztract
 
-## Quick overview
-
-There are two types of contributors with different requirements:
-
-- **Python contributors** — need Python 3.10+, JRE 11+, and Git. The pre-built `ztract-engine.jar` is committed to the repo; no Maven or JDK needed.
-- **Maintainers rebuilding the Java engine** — additionally need JDK 11+ and Maven 3.8+. This is only necessary when updating the Cobrix version or fixing the Java wrapper.
+There are three types of contributors, each with a different setup path. Find yours below.
 
 ---
 
-## Getting started (Python contributors)
+## Section A: Python Development Setup (most contributors)
 
-### Prerequisites
+For contributors working on Python code — adding features, fixing bugs, extending codepages, writers, or connectors.
+
+### Requirements
 
 - Python 3.10+
-- JRE 11+ — download from [Adoptium](https://adoptium.net/)
+- JRE 11+ — download from [Adoptium](https://adoptium.net)
 - Git
 
 ### Setup
 
 ```bash
-git clone https://github.com/<your-fork>/ztract.git
+git clone https://github.com/SRRC-1334/ztract.git
 cd ztract
-pip install -e ".[dev]"
+make install-dev    # or: pip install -e ".[dev]"
+pytest tests/ -v    # 428 tests, all should pass
+ztract --version    # ztract, version 0.1.0
 ```
 
-### Verify your setup
+The Java engine JAR (`ztract/engine/ztract-engine.jar`) is committed to the repo — no Maven or JDK needed. It changes rarely (only on Cobrix version bumps or wrapper fixes).
+
+---
+
+## Section B: Java Engine Development (rare)
+
+For contributors modifying the Java wrapper around the Cobrix cobol-parser.
+
+### Requirements
+
+Everything from Section A, plus:
+
+- JDK 11+
+- Maven 3.8+
+
+### Setup
 
 ```bash
-pytest tests/ -v        # 428 tests should pass
+# After cloning and installing Python deps (Section A):
+make rebuild-jar    # builds JAR from source and copies to ztract/engine/
+pytest tests/ -v -m integration   # test with real JAR
+```
+
+### When to rebuild
+
+- Cobrix releases a new version → update `engine-java/pom.xml` version → `make rebuild-jar`
+- Bug fix in wrapper code → edit Java source → `make rebuild-jar`
+- Normal Python development → **never** needs JAR rebuild
+
+After rebuilding, commit the updated JAR along with any source changes.
+
+---
+
+## Section C: Building from Source (end users)
+
+For users who want to install from the git repo instead of PyPI.
+
+### Requirements
+
+- Python 3.10+
+- JRE 11+ — download from [Adoptium](https://adoptium.net)
+
+### Setup
+
+```bash
+git clone https://github.com/SRRC-1334/ztract.git
+cd ztract
+pip install .
 ztract --version
 ```
+
+Identical to `pip install ztract` from PyPI. The JAR is committed to git, so build-from-source just works.
 
 ---
 
@@ -45,6 +90,13 @@ Write tests before writing implementation code. Tests are the specification.
 ```bash
 ruff check ztract/ tests/
 mypy ztract/ --ignore-missing-imports
+```
+
+Or via make:
+
+```bash
+make lint
+make typecheck
 ```
 
 ### Test markers
@@ -66,6 +118,7 @@ ztract/
   diff/           # Dataset diff functionality
   generate/       # Test data generation
   observability/  # Logging and metrics
+engine-java/      # Java source for the engine JAR (Maven project)
 ```
 
 ---
@@ -74,67 +127,41 @@ ztract/
 
 `ztract/engine/ztract-engine.jar` is committed to git and ships inside the Python wheel.
 
-- **Contributors do not need to rebuild it.**
-- It is a fat JAR wrapping [Cobrix](https://github.com/AbsaOSS/cobrix) cobol-parser (Apache 2.0), which handles all COBOL/EBCDIC parsing operations.
-- Python communicates with it via subprocess, exchanging JSON Lines over stdin/stdout.
-- The JAR runs on Windows, Linux, and macOS — the JVM handles cross-platform differences.
+**Why it's committed:**
+
+- It is ~5–10 MB and changes rarely (only on Cobrix version bumps or wrapper fixes).
+- Without it, `pip install` from source would require Maven and JDK — a heavy burden for Python contributors and CI.
+- Committing it means `pip install .` and `pip install ztract` work identically.
+
+The JAR wraps [Cobrix](https://github.com/AbsaOSS/cobrix) cobol-parser (Apache 2.0), which handles all COBOL/EBCDIC parsing operations. Python communicates with it via subprocess, exchanging JSON Lines over stdin/stdout. The JVM handles cross-platform differences — the same JAR runs on Windows, Linux, and macOS.
 
 ---
 
-## Rebuilding the Java engine (maintainers only)
+## Extension guides
 
-Only necessary when:
-- Updating the Cobrix dependency version
-- Fixing a bug in the Java wrapper code
-
-### Requirements
-
-- JDK 11+
-- Maven 3.8+
-
-### Steps
-
-```bash
-cd engine-java
-mvn package -q
-cp target/ztract-engine-0.1.0.jar ../ztract/engine/ztract-engine.jar
-```
-
-### After rebuilding
-
-```bash
-pytest tests/ -v -m integration
-```
-
-Then commit the updated JAR.
-
----
-
-## Adding new codepages
+### Adding new codepages
 
 1. Edit `ztract/codepages.py` — add one dict entry.
 2. Add tests in `tests/test_codepages.py`.
 
-## Adding new output writers
+### Adding new output writers
 
 1. Create `ztract/writers/your_writer.py` extending the `Writer` ABC.
 2. Add tests in `tests/writers/`.
 3. Register the writer in `ztract/cli/convert.py`.
 
-## Adding new connectors
+### Adding new connectors
 
 1. Create `ztract/connectors/your_connector.py` extending the `Connector` ABC.
 2. Add tests with mocked I/O.
 
 ---
 
-## Test data
+## Test data policy
 
 - All test data is generated via `ztract generate` with `--seed 42`.
 - No real mainframe data is ever committed to this repository.
 - Sample copybook: `tests/test_data/CUSTMAST.cpy`
-
-## Copybook contributions
 
 Anonymised or synthetic copybooks for common mainframe layouts are welcome. Place them in `copybooks/` — they are tested automatically via `ztract generate`.
 
