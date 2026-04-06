@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import csv
 import time
+from io import TextIOWrapper
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from ztract.writers.base import Writer, WriterStats, sanitize_column_name
 
@@ -26,8 +27,8 @@ class CSVWriter(Writer):
         self.encoding = encoding
         self.bom = bom
 
-        self._file = None
-        self._writer: Optional[csv.writer] = None
+        self._file: Optional[TextIOWrapper] = None
+        self._writer: Optional[Any] = None
         self._columns: list[str] = []  # sanitized column names to write (no FILLER)
         self._field_names: list[str] = []  # original names from schema
         self._records_written = 0
@@ -75,7 +76,8 @@ class CSVWriter(Writer):
                     row.append(str(value))
             self._writer.writerow(row)
             written += 1
-        self._file.flush()
+        if self._file is not None:
+            self._file.flush()
         self._records_written += written
         return written
 

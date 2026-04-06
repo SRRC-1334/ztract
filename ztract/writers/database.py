@@ -13,7 +13,6 @@ from sqlalchemy import (
     String,
     Table,
     create_engine,
-    text,
 )
 from sqlalchemy.engine import Engine
 

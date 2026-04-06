@@ -68,7 +68,7 @@ class EBCDICWriter(Writer):
             recfm=self._recfm,
             lrecl=self._lrecl,
             codepage=self._codepage,
-            records=records_snapshot,
+            records=iter(records_snapshot),
         )
         elapsed = time.monotonic() - self._start_time
         return WriterStats(records_written=count, elapsed_sec=elapsed)

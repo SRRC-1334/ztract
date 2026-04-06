@@ -8,7 +8,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from ztract.generate.field_patterns import generate_value, get_generator
 from ztract.generate.generator import generate_records
@@ -330,7 +329,7 @@ class TestEBCDICWriter:
         )
         w.open({})
         w.write_batch([{"ID": 1}, {"ID": 2}])
-        stats = w.close()
+        w.close()
 
         bridge.encode.assert_called_once()
         call_kwargs = bridge.encode.call_args

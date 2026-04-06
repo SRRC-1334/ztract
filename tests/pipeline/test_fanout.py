@@ -1,5 +1,4 @@
 """Tests for pipeline/fanout.py - FanOut queue."""
-import pytest
 from ztract.pipeline.fanout import FanOut
 from ztract.writers.base import Writer, WriterStats
 

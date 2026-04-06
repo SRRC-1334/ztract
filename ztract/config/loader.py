@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 __all__ = ["interpolate_env_vars", "load_job_config"]
 

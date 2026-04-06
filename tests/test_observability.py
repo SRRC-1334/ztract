@@ -7,9 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from pathlib import Path
 
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +399,7 @@ class TestAuditWriter:
         writer.write(self._make_entry())
         writer.write(self._make_entry())
         lines = audit_file.read_text().strip().splitlines()
-        ids = [json.loads(l)["audit_id"] for l in lines]
+        ids = [json.loads(ln)["audit_id"] for ln in lines]
         assert ids[0] != ids[1]
 
     def test_written_entry_has_required_fields(self, tmp_path):

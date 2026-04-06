@@ -1,5 +1,4 @@
 """Tests for writers/database.py - DatabaseWriter (SQLite)."""
-import pytest
 from sqlalchemy import create_engine, text
 
 from ztract.writers.database import DatabaseWriter

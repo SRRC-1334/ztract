@@ -4,10 +4,8 @@ All subprocess calls are mocked. Tests are written first (TDD).
 """
 
 import json
-import subprocess
-from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -262,7 +260,7 @@ class TestEncode:
 
         written_calls = mock_proc.stdin.write.call_args_list
         written_bytes = b"".join(c[0][0] for c in written_calls)
-        lines = [l for l in written_bytes.splitlines() if l]
+        lines = [ln for ln in written_bytes.splitlines() if ln]
         assert len(lines) == 2
         assert json.loads(lines[0]) == {"ID": 1}
         assert json.loads(lines[1]) == {"ID": 2}

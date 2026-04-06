@@ -5,7 +5,7 @@ import queue
 import threading
 from typing import Iterator
 
-from ztract.writers.base import Writer, WriterStats
+from ztract.writers.base import Writer
 
 _POISON = object()  # Sentinel to stop worker threads
 

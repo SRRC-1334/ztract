@@ -5,7 +5,6 @@ import ftplib
 import logging
 import time
 from pathlib import Path
-from typing import Callable
 
 from ztract.connectors.base import Connector
 
@@ -148,6 +147,7 @@ class FTPConnector(Connector):
         dest = Path(local_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
 
+        assert self._ftp is not None
         ftp = self._ftp
         if self.transfer_mode == "binary":
             with dest.open("wb") as fh:
@@ -180,6 +180,7 @@ class FTPConnector(Connector):
             Optional mapping of SITE command keys to values (e.g.
             ``{"recfm": "FB", "lrecl": "80"}``).
         """
+        assert self._ftp is not None
         ftp = self._ftp
         if site_commands:
             self._send_site_commands(ftp, site_commands)
@@ -195,6 +196,7 @@ class FTPConnector(Connector):
         pattern:
             Glob-style pattern forwarded to NLST (e.g. ``HLQ.DATA.*``).
         """
+        assert self._ftp is not None
         return self._ftp.nlst(pattern)
 
     def exists(self, source: str) -> bool:
@@ -204,6 +206,7 @@ class FTPConnector(Connector):
         datasets which is caught and converted to ``False``.
         """
         try:
+            assert self._ftp is not None
             self._ftp.size(source)
             return True
         except ftplib.all_errors:

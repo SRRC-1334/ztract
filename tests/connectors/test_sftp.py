@@ -140,7 +140,6 @@ class TestSFTPConnectorExists:
     def test_exists_false_when_stat_raises_ioerror(
         self, connector, mock_sftp
     ):
-        import paramiko
         mock_sftp.stat.side_effect = IOError("No such file")
         assert connector.exists("/remote/MISSING") is False
 

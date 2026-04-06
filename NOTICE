@@ -1,0 +1,40 @@
+Ztract
+Copyright 2026 SRRC-1334
+
+This product includes software developed by:
+
+- Cobrix (https://github.com/AbsaOSS/cobrix)
+  Copyright AbsaOSS, Licensed under Apache License 2.0
+  Used as the COBOL copybook parsing and EBCDIC decoding engine.
+
+- daff (https://github.com/paulfitz/daff)
+  Copyright Paul Fitzpatrick, Licensed under Apache License 2.0
+  Used for tabular data diff.
+
+- multidiff (https://github.com/juhakivekas/multidiff)
+  Copyright Juha Kivekäs, Licensed under MIT License
+  Used for binary hex diff of REDEFINES areas.
+
+- rich (https://github.com/Textualize/rich)
+  Copyright Will McGugan, Licensed under MIT License
+  Used for console output, progress bars, and tables.
+
+- Click (https://github.com/pallets/click)
+  Copyright Pallets Projects, Licensed under BSD-3-Clause
+  Used as the CLI framework.
+
+- PyArrow (https://arrow.apache.org/)
+  Copyright Apache Software Foundation, Licensed under Apache License 2.0
+  Used for Parquet output.
+
+- SQLAlchemy (https://www.sqlalchemy.org/)
+  Copyright SQLAlchemy authors, Licensed under MIT License
+  Used for database output abstraction.
+
+- Paramiko (https://www.paramiko.org/)
+  Copyright Jeff Forcier, Licensed under LGPL 2.1
+  Used for SFTP connectivity.
+
+- Faker (https://github.com/joke2k/faker)
+  Copyright Daniele Faraglia, Licensed under MIT License
+  Used for mock data generation.

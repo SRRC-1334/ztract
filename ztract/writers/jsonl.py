@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import time
+from io import TextIOWrapper
 from pathlib import Path
+from typing import Optional
 
 from ztract.writers.base import Writer, WriterStats
 
@@ -13,7 +15,7 @@ class JSONLWriter(Writer):
 
     def __init__(self, output_path: str) -> None:
         self.output_path = Path(output_path)
-        self._file = None
+        self._file: Optional[TextIOWrapper] = None
         self._records_written = 0
         self._start_time: float = 0.0
 

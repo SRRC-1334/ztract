@@ -66,9 +66,6 @@ def generate_records(
         Faker.seed(seed)
         random.seed(seed)
 
-    # Pre-build the faker instance (one per call, re-used for all records)
-    faker = Faker(locale)
-
     fields: list[dict] = schema.get("fields", [])
 
     for _ in range(count):

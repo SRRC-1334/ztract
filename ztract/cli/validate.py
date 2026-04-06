@@ -48,7 +48,7 @@ def validate(
             copybook=Path(copybook),
             input_path=Path(input_path),
             recfm=recfm,
-            lrecl=lrecl,
+            lrecl=lrecl or 0,
             codepage=resolved_codepage,
             sample=sample,
         )

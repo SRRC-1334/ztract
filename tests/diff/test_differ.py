@@ -4,9 +4,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
-from ztract.diff.differ import Differ, DiffResult
+from ztract.diff.differ import Differ
 
 
 # ---------------------------------------------------------------------------

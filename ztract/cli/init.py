@@ -44,9 +44,9 @@ def init(target_dir: str) -> None:
     config_path = root / ".ztract" / "config.yaml"
     if not config_path.exists():
         config_path.write_text(_DEFAULT_CONFIG, encoding="utf-8")
-        click.echo(f"  created  .ztract/config.yaml")
+        click.echo("  created  .ztract/config.yaml")
     else:
-        click.echo(f"  exists   .ztract/config.yaml (skipped)")
+        click.echo("  exists   .ztract/config.yaml (skipped)")
 
     # Append to .gitignore if .ztract_tmp is not already present
     gitignore_path = root / ".gitignore"
@@ -62,7 +62,7 @@ def init(target_dir: str) -> None:
         action = "updated" if gitignore_path.exists() else "created"
         click.echo(f"  {action}  .gitignore")
     else:
-        click.echo(f"  exists   .gitignore (Ztract entries already present, skipped)")
+        click.echo("  exists   .gitignore (Ztract entries already present, skipped)")
 
     click.echo()
     click.echo("Ztract project initialised. Next steps:")

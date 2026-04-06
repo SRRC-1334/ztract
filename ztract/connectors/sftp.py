@@ -5,7 +5,7 @@ import logging
 import warnings
 from pathlib import Path
 
-import paramiko
+import paramiko  # type: ignore[import-untyped]
 
 from ztract.connectors.base import Connector
 
@@ -85,6 +85,7 @@ class SFTPConnector(Connector):
         """
         dest = Path(local_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
+        assert self._sftp is not None
         self._sftp.get(source, str(dest))
         return dest
 
@@ -115,6 +116,7 @@ class SFTPConnector(Connector):
                 UserWarning,
                 stacklevel=2,
             )
+        assert self._sftp is not None
         self._sftp.put(local_path, destination)
 
     def exists(self, source: str) -> bool:
@@ -123,6 +125,7 @@ class SFTPConnector(Connector):
         Uses ``sftp.stat()`` — any I/O error is treated as "not found".
         """
         try:
+            assert self._sftp is not None
             self._sftp.stat(source)
             return True
         except (FileNotFoundError, IOError, OSError):

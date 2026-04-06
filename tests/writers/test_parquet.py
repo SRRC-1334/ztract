@@ -4,7 +4,7 @@ import pytest
 pyarrow = pytest.importorskip("pyarrow")
 pq = pytest.importorskip("pyarrow.parquet")
 
-from ztract.writers.parquet import ParquetWriter, _cobol_to_arrow_type, build_arrow_schema
+from ztract.writers.parquet import ParquetWriter, _cobol_to_arrow_type, build_arrow_schema  # noqa: E402
 
 
 SCHEMA_FIXTURE = {

@@ -1,8 +1,6 @@
 """Tests for writers/jsonl.py - JSONLWriter."""
 import json
-from pathlib import Path
 
-import pytest
 
 from ztract.writers.jsonl import JSONLWriter
 

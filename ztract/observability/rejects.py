@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from io import TextIOWrapper
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 class RejectHandler:
@@ -13,7 +14,7 @@ class RejectHandler:
     def __init__(self, file_path: Path) -> None:
         self._file_path = Path(file_path)
         self._count: int = 0
-        self._fh = None  # opened lazily on first reject
+        self._fh: Optional[TextIOWrapper] = None  # opened lazily on first reject
 
     # ------------------------------------------------------------------
     # Lifecycle

@@ -152,6 +152,7 @@ class ParquetWriter(Writer):
             arrays.append(pa.array(col_data[col], type=arrow_type))
 
         table = pa.table(dict(zip(self._columns, arrays)), schema=self._schema)
+        assert self._pq_writer is not None
         self._pq_writer.write_table(table)
         self._records_written += len(self._buffer)
         self._buffer = []

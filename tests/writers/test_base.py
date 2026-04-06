@@ -1,5 +1,4 @@
 """Tests for writers/base.py - sanitize_column_name and flatten_occurs."""
-import pytest
 from ztract.writers.base import sanitize_column_name, flatten_occurs
 
 

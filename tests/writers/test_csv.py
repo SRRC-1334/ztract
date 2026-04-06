@@ -1,8 +1,6 @@
 """Tests for writers/csv.py - CSVWriter."""
 import csv
-from pathlib import Path
 
-import pytest
 
 from ztract.writers.csv import CSVWriter
 
