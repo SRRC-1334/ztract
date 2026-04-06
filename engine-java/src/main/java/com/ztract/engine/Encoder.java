@@ -4,10 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import za.co.absa.cobrix.cobol.parser.CopybookParser;
-import za.co.absa.cobrix.cobol.parser.ast.Group;
+import za.co.absa.cobrix.cobol.parser.Copybook;
 import za.co.absa.cobrix.cobol.parser.ast.Primitive;
 import za.co.absa.cobrix.cobol.parser.ast.Statement;
+import za.co.absa.cobrix.cobol.parser.ast.datatype.CobolType;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -24,9 +24,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-
-import scala.collection.JavaConverters;
 
 /**
  * Encodes JSON Lines from stdin into an EBCDIC binary file.
@@ -41,24 +38,18 @@ public class Encoder {
 
     /**
      * Read JSON Lines from stdin and write EBCDIC binary records to output file.
-     *
-     * @param copybookPath path to the COBOL copybook
-     * @param outputPath   path to the output binary file
-     * @param recfm        record format (F, FB, V, VB, etc.)
-     * @param lrecl        logical record length
-     * @param codepage     EBCDIC code page (e.g., "cp037")
      */
     public static void encode(String copybookPath, String outputPath,
                               String recfm, Integer lrecl, String codepage)
             throws IOException {
 
         String copybookContent = new String(Files.readAllBytes(Paths.get(copybookPath)));
-        var copybook = CopybookParser.parseTree(copybookContent);
+        Copybook copybook = CobrixHelper.parseCopybook(copybookContent);
 
         // Collect primitives
         List<Primitive> primitives = new ArrayList<>();
-        for (Statement stmt : JavaConverters.seqAsJavaList(copybook.ast())) {
-            Decoder.collectPrimitives(stmt, primitives);
+        for (Statement stmt : CobrixHelper.getRootChildren(copybook)) {
+            CobrixHelper.collectPrimitives(stmt, primitives);
         }
 
         // Determine record length
@@ -96,12 +87,11 @@ public class Encoder {
                     JsonElement element = json.get(fieldName);
 
                     if (element == null || element.isJsonNull()) {
-                        // Leave as spaces (already filled)
                         continue;
                     }
 
                     int offset = p.binaryProperties().offset();
-                    int length = p.binaryProperties().dataLength();
+                    int length = p.binaryProperties().dataSize();
 
                     if (offset + length > recordLength) {
                         ZtractEngine.warn("Field '" + fieldName + "' extends beyond record length");
@@ -117,7 +107,6 @@ public class Encoder {
 
                 // Write the record
                 if (isVariable) {
-                    // Write RDW: 4 bytes, first 2 = total length (record + RDW), last 2 = 0
                     int totalLength = recordLength + 4;
                     dos.writeByte((totalLength >> 8) & 0xFF);
                     dos.writeByte(totalLength & 0xFF);
@@ -139,52 +128,55 @@ public class Encoder {
     private static void encodeField(Primitive primitive, JsonElement element,
                                     byte[] recordBytes, int offset, int length,
                                     Charset charset) {
-        String dataType = primitive.dataType().toString().toUpperCase();
+        CobolType dataType = primitive.dataType();
+        String dataTypeStr = dataType.toString().toUpperCase();
 
         // ALPHANUMERIC / PIC X
-        if (dataType.contains("ALPHANUMERIC") || dataType.contains("STRING")) {
+        if (dataTypeStr.contains("ALPHANUMERIC") || dataTypeStr.contains("STRING")) {
             encodeAlphanumeric(element.getAsString(), recordBytes, offset, length, charset);
             return;
         }
 
         // COMP-3 / PACKED DECIMAL
-        if (dataType.contains("PACKED") || dataType.contains("COMP3") || dataType.contains("COMP-3")) {
+        if (dataTypeStr.contains("COMP3") || dataTypeStr.contains("COMP-3") || dataTypeStr.contains("PACKED")) {
             BigDecimal value = element.getAsBigDecimal();
-            int scale = primitive.dataType().precision();
+            int scale = CobrixHelper.getScale(dataType);
             encodePackedDecimal(value, recordBytes, offset, length, scale);
             return;
         }
 
         // COMP / COMP-4 / BINARY
-        if (dataType.contains("BINARY") || dataType.contains("COMP4") || dataType.contains("COMP-4")
-                || (dataType.contains("COMP") && !dataType.contains("COMP-1") && !dataType.contains("COMP-2")
-                && !dataType.contains("COMP-3"))) {
+        if (dataTypeStr.contains("COMP4") || dataTypeStr.contains("COMP-4")
+                || dataTypeStr.contains("BINARY")
+                || (dataTypeStr.contains("COMP") && !dataTypeStr.contains("COMP-1") && !dataTypeStr.contains("COMP-2")
+                && !dataTypeStr.contains("COMP-3") && !dataTypeStr.contains("COMP3"))) {
             long value = element.getAsLong();
             encodeBinaryInteger(value, recordBytes, offset, length);
             return;
         }
 
-        // COMP-1 — 4-byte float
-        if (dataType.contains("COMP-1") || dataType.contains("FLOAT")) {
+        // COMP-1 -- 4-byte float
+        if (dataTypeStr.contains("COMP-1") || dataTypeStr.contains("COMP1") || dataTypeStr.contains("FLOAT")) {
             float value = element.getAsFloat();
             byte[] floatBytes = ByteBuffer.allocate(4).putFloat(value).array();
             System.arraycopy(floatBytes, 0, recordBytes, offset, Math.min(4, length));
             return;
         }
 
-        // COMP-2 — 8-byte double
-        if (dataType.contains("COMP-2") || dataType.contains("DOUBLE")) {
+        // COMP-2 -- 8-byte double
+        if (dataTypeStr.contains("COMP-2") || dataTypeStr.contains("COMP2") || dataTypeStr.contains("DOUBLE")) {
             double value = element.getAsDouble();
             byte[] doubleBytes = ByteBuffer.allocate(8).putDouble(value).array();
             System.arraycopy(doubleBytes, 0, recordBytes, offset, Math.min(8, length));
             return;
         }
 
-        // NUMERIC DISPLAY — zoned decimal
-        if (dataType.contains("NUMERIC") || dataType.contains("DECIMAL") || dataType.contains("INTEGER")) {
+        // NUMERIC DISPLAY -- zoned decimal
+        if (dataTypeStr.contains("NUMERIC") || dataTypeStr.contains("DECIMAL")
+                || dataTypeStr.contains("INTEGER") || dataTypeStr.contains("INTEGRAL")) {
             BigDecimal value = element.getAsBigDecimal();
-            int scale = primitive.dataType().precision();
-            boolean signed = primitive.dataType().signPosition().isDefined();
+            int scale = CobrixHelper.getScale(dataType);
+            boolean signed = CobrixHelper.isSigned(dataType);
             encodeZonedDecimal(value, recordBytes, offset, length, scale, signed, charset);
             return;
         }
@@ -193,47 +185,34 @@ public class Encoder {
         encodeAlphanumeric(element.getAsString(), recordBytes, offset, length, charset);
     }
 
-    /**
-     * Encode a string as EBCDIC alphanumeric, right-padded with EBCDIC spaces.
-     */
     private static void encodeAlphanumeric(String value, byte[] recordBytes,
                                            int offset, int length, Charset charset) {
         byte[] encoded = value.getBytes(charset);
         int copyLen = Math.min(encoded.length, length);
         System.arraycopy(encoded, 0, recordBytes, offset, copyLen);
-        // Remaining bytes are already EBCDIC spaces from initialization
     }
 
-    /**
-     * Encode a value as COMP-3 packed decimal.
-     */
     private static void encodePackedDecimal(BigDecimal value, byte[] recordBytes,
                                             int offset, int length, int scale) {
         boolean negative = value.signum() < 0;
         BigDecimal absValue = value.abs();
 
-        // Scale to integer
         if (scale > 0) {
             absValue = absValue.movePointRight(scale);
         }
 
         String digits = absValue.toBigInteger().toString();
 
-        // Packed decimal: each byte = 2 digits, last nibble = sign
-        // Total nibbles = (length * 2), digits = (length * 2 - 1)
         int totalNibbles = length * 2;
         int digitSlots = totalNibbles - 1;
 
-        // Pad digits with leading zeros
         while (digits.length() < digitSlots) {
             digits = "0" + digits;
         }
-        // Truncate if too long
         if (digits.length() > digitSlots) {
             digits = digits.substring(digits.length() - digitSlots);
         }
 
-        // Pack the digits
         byte[] packed = new byte[length];
         int nibbleIndex = 0;
         for (int i = 0; i < length; i++) {
@@ -245,7 +224,6 @@ public class Encoder {
                 lowNibble = digits.charAt(nibbleIndex + 1) - '0';
                 nibbleIndex += 2;
             } else {
-                // Last byte: digit + sign
                 highNibble = digits.charAt(nibbleIndex) - '0';
                 lowNibble = negative ? 0x0D : 0x0C;
                 nibbleIndex++;
@@ -257,9 +235,6 @@ public class Encoder {
         System.arraycopy(packed, 0, recordBytes, offset, length);
     }
 
-    /**
-     * Encode a long value as big-endian binary (COMP/COMP-4).
-     */
     private static void encodeBinaryInteger(long value, byte[] recordBytes,
                                             int offset, int length) {
         for (int i = length - 1; i >= 0; i--) {
@@ -268,9 +243,6 @@ public class Encoder {
         }
     }
 
-    /**
-     * Encode a value as zoned decimal (NUMERIC DISPLAY).
-     */
     private static void encodeZonedDecimal(BigDecimal value, byte[] recordBytes,
                                            int offset, int length, int scale,
                                            boolean signed, Charset charset) {
@@ -283,7 +255,6 @@ public class Encoder {
 
         String digits = absValue.toBigInteger().toString();
 
-        // Pad with leading zeros
         while (digits.length() < length) {
             digits = "0" + digits;
         }
@@ -291,12 +262,10 @@ public class Encoder {
             digits = digits.substring(digits.length() - length);
         }
 
-        // Encode each digit as EBCDIC zoned decimal: zone nibble (0xF) + digit nibble
         for (int i = 0; i < length; i++) {
             int digit = digits.charAt(i) - '0';
             int zone = 0xF0;
 
-            // For signed fields, the zone of the last byte indicates the sign
             if (signed && i == length - 1) {
                 zone = negative ? 0xD0 : 0xC0;
             }
@@ -305,13 +274,10 @@ public class Encoder {
         }
     }
 
-    /**
-     * Compute record length from primitive fields.
-     */
     private static int computeRecordLength(List<Primitive> primitives) {
         int max = 0;
         for (Primitive p : primitives) {
-            int end = p.binaryProperties().offset() + p.binaryProperties().dataLength();
+            int end = p.binaryProperties().offset() + p.binaryProperties().dataSize();
             if (end > max) {
                 max = end;
             }

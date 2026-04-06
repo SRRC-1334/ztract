@@ -2,10 +2,11 @@ package com.ztract.engine;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import za.co.absa.cobrix.cobol.parser.CopybookParser;
+import za.co.absa.cobrix.cobol.parser.Copybook;
 import za.co.absa.cobrix.cobol.parser.ast.Group;
 import za.co.absa.cobrix.cobol.parser.ast.Primitive;
 import za.co.absa.cobrix.cobol.parser.ast.Statement;
+import za.co.absa.cobrix.cobol.parser.ast.datatype.CobolType;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import scala.Option;
-import scala.collection.JavaConverters;
 
 /**
  * Extracts schema metadata from a COBOL copybook using Cobrix's CopybookParser.
@@ -37,14 +37,14 @@ public class SchemaExtractor {
         String copybookContent = new String(Files.readAllBytes(Paths.get(copybookPath)));
 
         // Parse the copybook using Cobrix
-        var copybook = CopybookParser.parseTree(copybookContent);
+        Copybook copybook = CobrixHelper.parseCopybook(copybookContent);
 
         // Build schema output
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("copybook", copybookPath);
 
         // Compute record length from the AST
-        int computedLength = computeRecordLength(copybook.ast());
+        int computedLength = copybook.getRecordSize();
 
         schema.put("record_length", computedLength);
         schema.put("record_format", recfm != null ? recfm : "FB");
@@ -53,7 +53,7 @@ public class SchemaExtractor {
         List<Map<String, Object>> fields = new ArrayList<>();
         List<Map<String, Object>> redefinesGroups = new ArrayList<>();
 
-        for (Statement stmt : JavaConverters.seqAsJavaList(copybook.ast())) {
+        for (Statement stmt : CobrixHelper.getRootChildren(copybook)) {
             if (stmt instanceof Group) {
                 walkGroup((Group) stmt, fields, redefinesGroups);
             } else if (stmt instanceof Primitive) {
@@ -84,7 +84,7 @@ public class SchemaExtractor {
         groupInfo.put("level", group.level());
         groupInfo.put("type", "GROUP");
         groupInfo.put("offset", group.binaryProperties().offset());
-        groupInfo.put("size", group.binaryProperties().dataLength());
+        groupInfo.put("size", group.binaryProperties().dataSize());
 
         Option<String> redefines = group.redefines();
         if (redefines.isDefined()) {
@@ -105,7 +105,7 @@ public class SchemaExtractor {
         fields.add(groupInfo);
 
         // Recurse into children
-        for (Statement child : JavaConverters.seqAsJavaList(group.children())) {
+        for (Statement child : CobrixHelper.getChildren(group)) {
             if (child instanceof Group) {
                 walkGroup((Group) child, fields, redefinesGroups);
             } else if (child instanceof Primitive) {
@@ -123,20 +123,21 @@ public class SchemaExtractor {
         info.put("level", primitive.level());
 
         // Data type classification
-        String dataType = primitive.dataType().toString();
-        info.put("type", classifyDataType(dataType));
+        CobolType dataType = primitive.dataType();
+        String dataTypeStr = dataType.toString();
+        info.put("type", classifyDataType(dataTypeStr));
 
         // PIC clause
-        info.put("pic", primitive.pic());
-        info.put("usage", dataType);
+        info.put("pic", CobrixHelper.getPic(dataType));
+        info.put("usage", dataTypeStr);
 
         // Binary properties
         info.put("offset", primitive.binaryProperties().offset());
-        info.put("size", primitive.binaryProperties().dataLength());
+        info.put("size", primitive.binaryProperties().dataSize());
 
         // Scale (decimal places)
-        info.put("scale", primitive.dataType().precision());
-        info.put("signed", primitive.dataType().signPosition().isDefined());
+        info.put("scale", CobrixHelper.getScale(dataType));
+        info.put("signed", CobrixHelper.isSigned(dataType));
 
         // Occurs
         Option<Object> occurs = primitive.occurs();
@@ -166,41 +167,9 @@ public class SchemaExtractor {
             return "BINARY";
         } else if (upper.contains("FLOAT")) {
             return "FLOAT";
-        } else if (upper.contains("NUMERIC") || upper.contains("DECIMAL") || upper.contains("INTEGER")) {
+        } else if (upper.contains("NUMERIC") || upper.contains("DECIMAL") || upper.contains("INTEGER") || upper.contains("INTEGRAL")) {
             return "NUMERIC";
         }
         return dataType;
-    }
-
-    /**
-     * Compute the total record length from the AST root statements.
-     */
-    private static int computeRecordLength(scala.collection.Seq<Statement> ast) {
-        int maxEnd = 0;
-        for (Statement stmt : JavaConverters.seqAsJavaList(ast)) {
-            int end = computeStatementEnd(stmt);
-            if (end > maxEnd) {
-                maxEnd = end;
-            }
-        }
-        return maxEnd;
-    }
-
-    private static int computeStatementEnd(Statement stmt) {
-        if (stmt instanceof Primitive) {
-            Primitive p = (Primitive) stmt;
-            return p.binaryProperties().offset() + p.binaryProperties().dataLength();
-        } else if (stmt instanceof Group) {
-            Group g = (Group) stmt;
-            int maxEnd = g.binaryProperties().offset() + g.binaryProperties().dataLength();
-            for (Statement child : JavaConverters.seqAsJavaList(g.children())) {
-                int end = computeStatementEnd(child);
-                if (end > maxEnd) {
-                    maxEnd = end;
-                }
-            }
-            return maxEnd;
-        }
-        return 0;
     }
 }

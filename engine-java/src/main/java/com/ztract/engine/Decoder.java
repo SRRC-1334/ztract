@@ -1,10 +1,10 @@
 package com.ztract.engine;
 
 import com.google.gson.Gson;
-import za.co.absa.cobrix.cobol.parser.CopybookParser;
-import za.co.absa.cobrix.cobol.parser.ast.Group;
+import za.co.absa.cobrix.cobol.parser.Copybook;
 import za.co.absa.cobrix.cobol.parser.ast.Primitive;
 import za.co.absa.cobrix.cobol.parser.ast.Statement;
+import za.co.absa.cobrix.cobol.parser.ast.datatype.CobolType;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -21,9 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import scala.Option;
-import scala.collection.JavaConverters;
-
 /**
  * Decodes EBCDIC binary files into JSON Lines written to stdout.
  * Supports fixed-length (F/FB) and variable-length (V/VB) record formats.
@@ -34,25 +31,18 @@ public class Decoder {
 
     /**
      * Decode an EBCDIC file to JSON Lines on stdout.
-     *
-     * @param copybookPath path to the COBOL copybook
-     * @param inputPath    path to the binary input file
-     * @param recfm        record format (F, FB, V, VB, etc.)
-     * @param lrecl        logical record length (required for fixed formats)
-     * @param codepage     EBCDIC code page (e.g., "cp037")
-     * @param encoding     encoding type ("ebcdic" or "ascii")
      */
     public static void decode(String copybookPath, String inputPath,
                               String recfm, Integer lrecl, String codepage, String encoding)
             throws IOException {
 
         String copybookContent = new String(Files.readAllBytes(Paths.get(copybookPath)));
-        var copybook = CopybookParser.parseTree(copybookContent);
+        Copybook copybook = CobrixHelper.parseCopybook(copybookContent);
 
         // Collect all primitive fields from the AST
         List<Primitive> primitives = new ArrayList<>();
-        for (Statement stmt : JavaConverters.seqAsJavaList(copybook.ast())) {
-            collectPrimitives(stmt, primitives);
+        for (Statement stmt : CobrixHelper.getRootChildren(copybook)) {
+            CobrixHelper.collectPrimitives(stmt, primitives);
         }
 
         // Determine record length
@@ -122,7 +112,7 @@ public class Decoder {
 
         for (Primitive p : primitives) {
             int offset = p.binaryProperties().offset();
-            int length = p.binaryProperties().dataLength();
+            int length = p.binaryProperties().dataSize();
 
             // Bounds check
             if (offset + length > recordBytes.length) {
@@ -150,42 +140,45 @@ public class Decoder {
      * Decode a single field's bytes based on its COBOL data type.
      */
     private static Object decodeField(Primitive primitive, byte[] bytes, Charset charset) {
-        String dataType = primitive.dataType().toString().toUpperCase();
+        CobolType dataType = primitive.dataType();
+        String dataTypeStr = dataType.toString().toUpperCase();
 
-        // ALPHANUMERIC / PIC X — character data
-        if (dataType.contains("ALPHANUMERIC") || dataType.contains("STRING")) {
+        // ALPHANUMERIC / PIC X -- character data
+        if (dataTypeStr.contains("ALPHANUMERIC") || dataTypeStr.contains("STRING")) {
             return new String(bytes, charset).stripTrailing();
         }
 
         // COMP-3 / PACKED DECIMAL
-        if (dataType.contains("PACKED") || dataType.contains("COMP3") || dataType.contains("COMP-3")) {
-            return decodePackedDecimal(bytes, primitive.dataType().precision());
+        if (dataTypeStr.contains("COMP3") || dataTypeStr.contains("COMP-3") || dataTypeStr.contains("PACKED")) {
+            return decodePackedDecimal(bytes, CobrixHelper.getScale(dataType));
         }
 
-        // COMP / COMP-4 / BINARY — big-endian integer
-        if (dataType.contains("BINARY") || dataType.contains("COMP4") || dataType.contains("COMP-4")
-                || (dataType.contains("COMP") && !dataType.contains("COMP-1") && !dataType.contains("COMP-2")
-                && !dataType.contains("COMP-3"))) {
-            return decodeBinaryInteger(bytes, primitive.dataType().signPosition().isDefined());
+        // COMP / COMP-4 / BINARY -- big-endian integer
+        if (dataTypeStr.contains("COMP4") || dataTypeStr.contains("COMP-4")
+                || dataTypeStr.contains("BINARY")
+                || (dataTypeStr.contains("COMP") && !dataTypeStr.contains("COMP-1") && !dataTypeStr.contains("COMP-2")
+                && !dataTypeStr.contains("COMP-3") && !dataTypeStr.contains("COMP3"))) {
+            return decodeBinaryInteger(bytes, CobrixHelper.isSigned(dataType));
         }
 
-        // COMP-1 — 4-byte IEEE float
-        if (dataType.contains("COMP-1") || dataType.contains("FLOAT")) {
+        // COMP-1 -- 4-byte IEEE float
+        if (dataTypeStr.contains("COMP-1") || dataTypeStr.contains("COMP1") || dataTypeStr.contains("FLOAT")) {
             if (bytes.length == 4) {
                 return ByteBuffer.wrap(bytes).getFloat();
             }
             return ByteBuffer.wrap(bytes).getDouble();
         }
 
-        // COMP-2 — 8-byte IEEE double
-        if (dataType.contains("COMP-2") || dataType.contains("DOUBLE")) {
+        // COMP-2 -- 8-byte IEEE double
+        if (dataTypeStr.contains("COMP-2") || dataTypeStr.contains("COMP2") || dataTypeStr.contains("DOUBLE")) {
             return ByteBuffer.wrap(bytes).getDouble();
         }
 
-        // NUMERIC DISPLAY — zoned decimal (EBCDIC digits)
-        if (dataType.contains("NUMERIC") || dataType.contains("DECIMAL") || dataType.contains("INTEGER")) {
-            return decodeZonedDecimal(bytes, charset, primitive.dataType().precision(),
-                    primitive.dataType().signPosition().isDefined());
+        // NUMERIC DISPLAY -- zoned decimal
+        if (dataTypeStr.contains("NUMERIC") || dataTypeStr.contains("DECIMAL")
+                || dataTypeStr.contains("INTEGER") || dataTypeStr.contains("INTEGRAL")) {
+            return decodeZonedDecimal(bytes, charset, CobrixHelper.getScale(dataType),
+                    CobrixHelper.isSigned(dataType));
         }
 
         // Fallback: treat as alphanumeric
@@ -194,8 +187,6 @@ public class Decoder {
 
     /**
      * Decode COMP-3 packed decimal.
-     * Each byte has two BCD digits (nibbles). The last nibble is the sign.
-     * 0x0C = positive, 0x0D = negative, 0x0F = unsigned.
      */
     static BigDecimal decodePackedDecimal(byte[] bytes, int scale) {
         StringBuilder sb = new StringBuilder();
@@ -206,16 +197,13 @@ public class Decoder {
             int lowNibble = b & 0x0F;
 
             if (i < bytes.length - 1) {
-                // Both nibbles are digits
                 sb.append(highNibble);
                 sb.append(lowNibble);
             } else {
-                // Last byte: high nibble is digit, low nibble is sign
                 sb.append(highNibble);
             }
         }
 
-        // Determine sign from last nibble of last byte
         int signNibble = bytes[bytes.length - 1] & 0x0F;
         boolean negative = (signNibble == 0x0D);
 
@@ -244,9 +232,7 @@ public class Decoder {
             value = (value << 8) | (b & 0xFF);
         }
 
-        // Handle sign extension for signed values
         if (signed && bytes.length > 0 && (bytes[0] & 0x80) != 0) {
-            // Sign extend
             for (int i = bytes.length; i < 8; i++) {
                 value |= (0xFFL << (i * 8));
             }
@@ -257,7 +243,6 @@ public class Decoder {
 
     /**
      * Decode zoned decimal (NUMERIC DISPLAY).
-     * In EBCDIC, digits 0-9 are 0xF0-0xF9. The sign is in the zone of the last byte.
      */
     static BigDecimal decodeZonedDecimal(byte[] bytes, Charset charset, int scale, boolean signed) {
         StringBuilder sb = new StringBuilder();
@@ -268,11 +253,9 @@ public class Decoder {
             sb.append(digit);
         }
 
-        // Check sign from zone nibble of last byte
         boolean negative = false;
         if (signed && bytes.length > 0) {
             int zone = (bytes[bytes.length - 1] >> 4) & 0x0F;
-            // 0xD = negative in EBCDIC
             negative = (zone == 0x0D);
         }
 
@@ -292,14 +275,7 @@ public class Decoder {
      * Recursively collect all Primitive fields from the AST.
      */
     static void collectPrimitives(Statement stmt, List<Primitive> primitives) {
-        if (stmt instanceof Primitive) {
-            primitives.add((Primitive) stmt);
-        } else if (stmt instanceof Group) {
-            Group group = (Group) stmt;
-            for (Statement child : JavaConverters.seqAsJavaList(group.children())) {
-                collectPrimitives(child, primitives);
-            }
-        }
+        CobrixHelper.collectPrimitives(stmt, primitives);
     }
 
     /**
@@ -308,7 +284,7 @@ public class Decoder {
     private static int computeRecordLength(List<Primitive> primitives) {
         int max = 0;
         for (Primitive p : primitives) {
-            int end = p.binaryProperties().offset() + p.binaryProperties().dataLength();
+            int end = p.binaryProperties().offset() + p.binaryProperties().dataSize();
             if (end > max) {
                 max = end;
             }
@@ -323,7 +299,6 @@ public class Decoder {
         if ("ascii".equalsIgnoreCase(encoding)) {
             return Charset.forName("US-ASCII");
         }
-        // EBCDIC code pages: cp037, cp500, cp1047, cp277, etc.
         try {
             return Charset.forName(codepage.toUpperCase().replace("CP", "IBM"));
         } catch (Exception e) {

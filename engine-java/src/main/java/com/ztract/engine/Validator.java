@@ -2,7 +2,7 @@ package com.ztract.engine;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import za.co.absa.cobrix.cobol.parser.CopybookParser;
+import za.co.absa.cobrix.cobol.parser.Copybook;
 import za.co.absa.cobrix.cobol.parser.ast.Primitive;
 import za.co.absa.cobrix.cobol.parser.ast.Statement;
 
@@ -19,11 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import scala.collection.JavaConverters;
-
 /**
  * Validates an EBCDIC file by decoding a sample of records and reporting statistics.
- * Does not write any output files — reports JSON to stdout.
+ * Does not write any output files -- reports JSON to stdout.
  */
 public class Validator {
 
@@ -31,25 +29,18 @@ public class Validator {
 
     /**
      * Validate an EBCDIC file by decoding up to `sample` records.
-     *
-     * @param copybookPath path to the COBOL copybook
-     * @param inputPath    path to the binary input file
-     * @param recfm        record format
-     * @param lrecl        logical record length
-     * @param codepage     EBCDIC code page
-     * @param sample       maximum number of records to sample
      */
     public static void validate(String copybookPath, String inputPath,
                                 String recfm, Integer lrecl, String codepage, int sample)
             throws IOException {
 
         String copybookContent = new String(Files.readAllBytes(Paths.get(copybookPath)));
-        var copybook = CopybookParser.parseTree(copybookContent);
+        Copybook copybook = CobrixHelper.parseCopybook(copybookContent);
 
         // Collect primitives
         List<Primitive> primitives = new ArrayList<>();
-        for (Statement stmt : JavaConverters.seqAsJavaList(copybook.ast())) {
-            Decoder.collectPrimitives(stmt, primitives);
+        for (Statement stmt : CobrixHelper.getRootChildren(copybook)) {
+            CobrixHelper.collectPrimitives(stmt, primitives);
         }
 
         // Determine record length
@@ -106,7 +97,6 @@ public class Validator {
                         bytesRead += recordLength;
                     }
                 } catch (java.io.EOFException eof) {
-                    // Partial record at end of file
                     ZtractEngine.warn("Unexpected end of file at record " + recordsDecoded);
                     recordsErrors++;
                     break;
@@ -117,7 +107,7 @@ public class Validator {
 
                 for (Primitive p : primitives) {
                     int offset = p.binaryProperties().offset();
-                    int length = p.binaryProperties().dataLength();
+                    int length = p.binaryProperties().dataSize();
                     FieldStats stats = fieldStatsMap.get(p.name());
 
                     if (offset + length > recordBytes.length) {
@@ -169,9 +159,6 @@ public class Validator {
         System.out.flush();
     }
 
-    /**
-     * Update field-level statistics with a decoded value.
-     */
     private static void updateStats(FieldStats stats, Object value) {
         if (value instanceof Number) {
             double d = ((Number) value).doubleValue();
@@ -190,7 +177,6 @@ public class Validator {
                 stats.max = d;
             }
         } else if (value instanceof String) {
-            // Track sample values (keep first 5)
             if (stats.sampleValues.size() < 5) {
                 String s = (String) value;
                 if (!s.isEmpty() && !stats.sampleValues.contains(s)) {
@@ -203,7 +189,7 @@ public class Validator {
     private static int computeRecordLength(List<Primitive> primitives) {
         int max = 0;
         for (Primitive p : primitives) {
-            int end = p.binaryProperties().offset() + p.binaryProperties().dataLength();
+            int end = p.binaryProperties().offset() + p.binaryProperties().dataSize();
             if (end > max) {
                 max = end;
             }
@@ -211,9 +197,6 @@ public class Validator {
         return max;
     }
 
-    /**
-     * Per-field statistics tracker.
-     */
     private static class FieldStats {
         final String name;
         int nullCount = 0;
