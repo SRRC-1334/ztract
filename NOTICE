@@ -3,38 +3,86 @@ Copyright 2026 SRRC-1334
 
 This product includes software developed by:
 
+Core Engine:
+
 - Cobrix (https://github.com/AbsaOSS/cobrix)
   Copyright AbsaOSS, Licensed under Apache License 2.0
-  Used as the COBOL copybook parsing and EBCDIC decoding engine.
+  COBOL copybook parsing and EBCDIC binary decoding engine.
+
+Diff Tools:
 
 - daff (https://github.com/paulfitz/daff)
   Copyright Paul Fitzpatrick, Licensed under Apache License 2.0
-  Used for tabular data diff.
+  Tabular data diff engine.
 
 - multidiff (https://github.com/juhakivekas/multidiff)
-  Copyright Juha Kivekäs, Licensed under MIT License
-  Used for binary hex diff of REDEFINES areas.
+  Copyright Juha Kivekas, Licensed under MIT License
+  Binary hex diff for REDEFINES byte areas.
+
+Console + Progress:
 
 - rich (https://github.com/Textualize/rich)
-  Copyright Will McGugan, Licensed under MIT License
-  Used for console output, progress bars, and tables.
+  Copyright Will McGugan / Textualize, Licensed under MIT License
+  Console output, progress bars, tables, and colorized diff display.
+
+CLI:
 
 - Click (https://github.com/pallets/click)
   Copyright Pallets Projects, Licensed under BSD-3-Clause
-  Used as the CLI framework.
+  CLI framework.
+
+Data:
 
 - PyArrow (https://arrow.apache.org/)
   Copyright Apache Software Foundation, Licensed under Apache License 2.0
-  Used for Parquet output.
+  Parquet output and Arrow columnar format.
+
+- fsspec (https://github.com/fsspec/filesystem_spec)
+  Copyright fsspec contributors, Licensed under BSD-3-Clause
+  Filesystem abstraction for cloud storage output (S3, Azure, GCS).
+
+Database:
 
 - SQLAlchemy (https://www.sqlalchemy.org/)
-  Copyright SQLAlchemy authors, Licensed under MIT License
-  Used for database output abstraction.
+  Copyright Mike Bayer and SQLAlchemy authors, Licensed under MIT License
+  Database output abstraction layer.
 
-- Paramiko (https://www.paramiko.org/)
+Connectivity:
+
+- Paramiko (https://github.com/paramiko/paramiko)
   Copyright Jeff Forcier, Licensed under LGPL 2.1
-  Used for SFTP connectivity.
+  SFTP connectivity via SSH.
+
+- Zowe CLI (https://github.com/zowe/zowe-cli)
+  Copyright Open Mainframe Project / Zowe, Licensed under EPL 2.0
+  z/OS dataset access via z/OSMF REST API.
+
+- Zowe z/OS FTP Plugin (https://github.com/zowe/zowe-cli-ftp-plugin)
+  Copyright Zowe community, Licensed under EPL 2.0
+  z/OS dataset access via FTP (no z/OSMF required).
+
+Config:
+
+- PyYAML (https://github.com/yaml/pyyaml)
+  Copyright Kirill Simonov, Licensed under MIT License
+  YAML configuration parsing.
+
+Test Data Generation:
 
 - Faker (https://github.com/joke2k/faker)
   Copyright Daniele Faraglia, Licensed under MIT License
-  Used for mock data generation.
+  Locale-aware mock data generation.
+
+Cloud Storage (optional):
+
+- s3fs (https://github.com/fsspec/s3fs)
+  Copyright fsspec contributors, Licensed under BSD-3-Clause
+  AWS S3 filesystem for fsspec.
+
+- adlfs (https://github.com/fsspec/adlfs)
+  Copyright fsspec contributors, Licensed under BSD-3-Clause
+  Azure Blob / Data Lake filesystem for fsspec.
+
+- gcsfs (https://github.com/fsspec/gcsfs)
+  Copyright fsspec contributors, Licensed under BSD-3-Clause
+  Google Cloud Storage filesystem for fsspec.

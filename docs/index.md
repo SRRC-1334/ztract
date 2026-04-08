@@ -29,6 +29,7 @@ The result: pull files from your mainframe via FTP, SFTP, or Zowe, decode them w
 - **YAML pipelines** — define multi-step extract/transform/load workflows in a single file
 - **Copybook inspector** — visualise any `.cpy` file as a formatted field table in seconds
 - **Enterprise observability** — structured JSON logs, immutable audit trail, reject files with full context
+- **Cloud output** — write directly to S3, Azure Blob, or GCS via [fsspec](https://github.com/fsspec/filesystem_spec)
 
 ---
 
@@ -82,6 +83,7 @@ Done. 2,400,000 records → customers.csv
 | [Quick Start](quickstart.md) | Step-by-step walkthrough from install to first extract |
 | [Commands](commands.md) | Full CLI reference for all 8 commands |
 | [Connectors](connectors.md) | Local, FTP, SFTP, and Zowe connectivity |
+| [Cloud Storage](cloud.md) | Write to S3, Azure Blob, GCS via fsspec |
 | [EBCDIC Code Pages](codepages.md) | Supported code pages and aliases |
 | [YAML Pipelines](yaml-pipelines.md) | Multi-step pipeline format reference |
 | [Copybooks](copybooks.md) | COBOL copybook guide and supported features |

@@ -42,6 +42,8 @@ local:  --input ./FILE.DAT
 ftp:    --input ftp://user:pass@host/DATASET
 sftp:   --input sftp://user@host/DATASET
 zowe:   --zowe-profile PROD --dataset HLQ.DATASET
+        Backends: zosmf (default), zftp (no z/OSMF needed)
+        Transfer modes: binary, text, encoding, record
 
 ## YAML Pipeline Format
 version: "1.0"
@@ -73,7 +75,8 @@ steps:
 ## Output Targets
 csv, jsonl, parquet,
 postgresql://, mysql://, mssql://,
-ftp://, sftp://
+ftp://, sftp://,
+s3://, az://, gs:// (cloud via fsspec)
 
 ## Java Engine
 Requires JRE 11+ on PATH. JAR bundled in package.
@@ -84,9 +87,15 @@ pip install ztract
 pip install ztract[postgres]   # PostgreSQL
 pip install ztract[mysql]      # MySQL
 pip install ztract[mssql]      # SQL Server
+pip install ztract[aws]        # S3 output
+pip install ztract[azure]      # Azure Blob output
+pip install ztract[gcp]        # Google Cloud output
+pip install ztract[cloud]      # All three cloud providers
 
 ## Attribution
 Built on Cobrix by AbsaOSS (Apache 2.0).
+Zowe CLI by Open Mainframe Project (EPL 2.0).
+Cloud storage via fsspec ecosystem (BSD-3).
 https://github.com/AbsaOSS/cobrix
 
 ## Source

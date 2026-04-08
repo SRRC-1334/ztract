@@ -26,6 +26,7 @@ nav:
   - Quick Start: quickstart.md
   - Commands: commands.md
   - Connectors: connectors.md
+  - Cloud Storage: cloud.md
   - EBCDIC Code Pages: codepages.md
   - YAML Pipelines: yaml-pipelines.md
   - Copybooks: copybooks.md
