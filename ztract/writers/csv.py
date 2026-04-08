@@ -7,6 +7,9 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Optional
 
+import fsspec
+
+from ztract.connectors.base import is_cloud_path
 from ztract.writers.base import Writer, WriterStats, sanitize_column_name
 
 
@@ -20,12 +23,15 @@ class CSVWriter(Writer):
         null_value: str = "",
         encoding: str = "utf-8",
         bom: bool = False,
+        storage_options: dict | None = None,
     ) -> None:
-        self.output_path = Path(output_path)
+        self._output_str = str(output_path)
+        self.output_path = Path(output_path) if not is_cloud_path(self._output_str) else output_path
         self.delimiter = delimiter
         self.null_value = null_value
         self.encoding = encoding
         self.bom = bom
+        self._storage_options = storage_options or {}
 
         self._file: Optional[TextIOWrapper] = None
         self._writer: Optional[Any] = None
@@ -50,8 +56,17 @@ class CSVWriter(Writer):
             self._field_names.append(f["name"])
             self._columns.append(sanitize_column_name(f["name"]))
 
-        encoding = f"{self.encoding}-sig" if self.bom and self.encoding == "utf-8" else self.encoding
-        self._file = open(self.output_path, "w", newline="", encoding=encoding)
+        enc = f"{self.encoding}-sig" if self.bom and self.encoding == "utf-8" else self.encoding
+
+        if is_cloud_path(self._output_str):
+            self._file = fsspec.open(
+                self._output_str, mode="w", encoding=enc,
+                newline="", **self._storage_options,
+            ).open()
+        else:
+            Path(self._output_str).parent.mkdir(parents=True, exist_ok=True)
+            self._file = open(self._output_str, "w", newline="", encoding=enc)
+
         self._writer = csv.writer(self._file, delimiter=self.delimiter)
         self._writer.writerow(self._columns)
 

@@ -223,3 +223,73 @@ ztract convert \
 
 !!! note
     The Zowe CLI must be installed and the specified profile must be configured and authenticated before running Ztract. Check with `zowe profiles list` and `zowe zosmf check status --zosmf-profile MYPROD`. For zftp, the `@zowe/zos-ftp-for-zowe-cli` plugin must be installed: `zowe plugins install @zowe/zos-ftp-for-zowe-cli`.
+
+---
+
+## Cloud Storage Output
+
+All three file-based writers (CSV, JSON Lines, Parquet) support writing directly to cloud storage via [fsspec](https://filesystem-spec.readthedocs.io/). No code changes needed — just use a cloud URI as the output path.
+
+### Supported Providers
+
+| Provider | URI scheme | Extra package |
+|---|---|---|
+| AWS S3 | `s3://bucket/key` | `pip install ztract[aws]` |
+| Azure Blob / ADLS | `az://container/path` or `abfs://` | `pip install ztract[azure]` |
+| Google Cloud Storage | `gs://bucket/path` | `pip install ztract[gcp]` |
+| All three | | `pip install ztract[cloud]` |
+
+### Examples
+
+```bash
+# Write Parquet directly to S3
+pip install ztract[aws]
+
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_DEFAULT_REGION=eu-west-1
+
+ztract convert \
+  --copybook CUSTMAST.cpy \
+  --input CUST.DAT \
+  --recfm FB --lrecl 500 --codepage cp277 \
+  --output s3://my-data-lake/mainframe/customers.parquet
+```
+
+```bash
+# Write CSV to Azure Blob
+pip install ztract[azure]
+
+export AZURE_STORAGE_CONNECTION_STRING=...
+
+ztract convert \
+  --copybook CUSTMAST.cpy \
+  --input CUST.DAT \
+  --recfm FB --lrecl 500 --codepage cp277 \
+  --output az://raw-data/mainframe/customers.csv
+```
+
+### YAML Pipeline with Cloud Output
+
+```yaml
+steps:
+  - name: extract-to-s3
+    action: convert
+    input:
+      dataset: CUST.DAT
+      record_format: FB
+      lrecl: 500
+      codepage: cp277
+    copybook: ./CUSTMAST.cpy
+    output:
+      - type: parquet
+        path: s3://my-data-lake/mainframe/customers.parquet
+        storage_options:
+          key: ${AWS_ACCESS_KEY_ID}
+          secret: ${AWS_SECRET_ACCESS_KEY}
+          client_kwargs:
+            region_name: eu-west-1
+```
+
+!!! note
+    Cloud credentials are resolved via environment variables (recommended) or `storage_options` in YAML. The `storage_options` dict is passed directly to fsspec — see [s3fs](https://s3fs.readthedocs.io/), [adlfs](https://github.com/fsspec/adlfs), or [gcsfs](https://gcsfs.readthedocs.io/) docs for available options.

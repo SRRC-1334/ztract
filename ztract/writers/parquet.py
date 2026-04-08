@@ -5,8 +5,11 @@ import time
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+import fsspec
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+from ztract.connectors.base import is_cloud_path
 
 from ztract.writers.base import Writer, WriterStats, sanitize_column_name
 
@@ -96,10 +99,12 @@ class ParquetWriter(Writer):
         output_path: str,
         row_group_size: int = 10_000,
         compression: str = "snappy",
+        storage_options: dict | None = None,
     ) -> None:
-        self.output_path = Path(output_path)
+        self.output_path = Path(output_path) if not is_cloud_path(str(output_path)) else output_path
         self.row_group_size = row_group_size
         self.compression = compression
+        self._storage_options = storage_options or {}
 
         self._schema: pa.Schema | None = None
         self._field_defs: list[dict] = []
@@ -112,7 +117,9 @@ class ParquetWriter(Writer):
 
     @property
     def name(self) -> str:
-        return f"Parquet → {self.output_path.name}"
+        path_str = str(self.output_path)
+        display = path_str.split("/")[-1] if "/" in path_str else path_str
+        return f"Parquet → {display}"
 
     def open(self, schema: dict) -> None:
         self._start_time = time.monotonic()
@@ -121,11 +128,24 @@ class ParquetWriter(Writer):
         self._columns = [sanitize_column_name(f["name"]) for f in self._field_defs]
         self._original_names = [f["name"] for f in self._field_defs]
         self._schema = build_arrow_schema(fields)
-        self._pq_writer = pq.ParquetWriter(
-            str(self.output_path),
-            self._schema,
-            compression=self.compression,
-        )
+
+        output_str = str(self.output_path)
+
+        if is_cloud_path(output_str):
+            fs, path = fsspec.core.url_to_fs(output_str, **self._storage_options)
+            self._pq_writer = pq.ParquetWriter(
+                path,
+                self._schema,
+                filesystem=fs,
+                compression=self.compression,
+            )
+        else:
+            Path(output_str).parent.mkdir(parents=True, exist_ok=True)
+            self._pq_writer = pq.ParquetWriter(
+                output_str,
+                self._schema,
+                compression=self.compression,
+            )
         self._buffer = []
 
     def _flush_buffer(self) -> None:

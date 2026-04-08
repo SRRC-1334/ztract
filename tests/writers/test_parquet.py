@@ -134,3 +134,80 @@ class TestParquetWriter:
         out = tmp_path / "data.parquet"
         w = ParquetWriter(str(out))
         assert "parquet" in w.name.lower() or "Parquet" in w.name
+
+
+# ---------------------------------------------------------------------------
+# Cloud path tests
+# ---------------------------------------------------------------------------
+
+from unittest.mock import MagicMock, patch
+
+from ztract.connectors.base import is_cloud_path
+
+
+class TestCloudPaths:
+
+    def test_s3_path_detected_as_cloud(self):
+        assert is_cloud_path("s3://bucket/key.parquet")
+
+    def test_local_path_not_cloud(self):
+        assert not is_cloud_path("./output/data.parquet")
+
+    def test_azure_path_detected(self):
+        assert is_cloud_path("az://container/data.parquet")
+
+    def test_gcs_path_detected(self):
+        assert is_cloud_path("gs://bucket/data.parquet")
+
+    def test_abfs_path_detected(self):
+        assert is_cloud_path("abfs://container@account/data.parquet")
+
+    def test_s3a_path_detected(self):
+        assert is_cloud_path("s3a://bucket/key.parquet")
+
+    def test_parquet_writer_local_unchanged(self, tmp_path):
+        """Local writes must still work exactly as before."""
+        out = tmp_path / "local.parquet"
+        w = ParquetWriter(str(out))
+        w.open(SCHEMA_FIXTURE)
+        w.write_batch(RECORDS)
+        stats = w.close()
+        assert stats.records_written == 2
+        table = pq.read_table(str(out))
+        assert table.num_rows == 2
+
+    def test_parquet_writer_cloud_uses_fsspec(self):
+        """For s3:// paths, ParquetWriter should call fsspec.core.url_to_fs."""
+        mock_fs = MagicMock()
+        with patch("ztract.writers.parquet.fsspec") as mock_fsspec:
+            mock_fsspec.core.url_to_fs.return_value = (mock_fs, "bucket/key.parquet")
+            w = ParquetWriter("s3://bucket/key.parquet")
+            with patch("ztract.writers.parquet.pq.ParquetWriter"):
+                w.open(SCHEMA_FIXTURE)
+            mock_fsspec.core.url_to_fs.assert_called_once()
+
+    def test_csv_writer_cloud_uses_fsspec_open(self):
+        """For az:// paths, CSVWriter should call fsspec.open."""
+        from ztract.writers.csv import CSVWriter
+
+        mock_file = MagicMock()
+        mock_opener = MagicMock()
+        mock_opener.open.return_value = mock_file
+        with patch("ztract.writers.csv.fsspec") as mock_fsspec:
+            mock_fsspec.open.return_value = mock_opener
+            w = CSVWriter("az://container/data.csv")
+            w.open(SCHEMA_FIXTURE)
+            mock_fsspec.open.assert_called_once()
+
+    def test_jsonl_writer_cloud_uses_fsspec_open(self):
+        """For gs:// paths, JSONLWriter should call fsspec.open."""
+        from ztract.writers.jsonl import JSONLWriter
+
+        mock_file = MagicMock()
+        mock_opener = MagicMock()
+        mock_opener.open.return_value = mock_file
+        with patch("ztract.writers.jsonl.fsspec") as mock_fsspec:
+            mock_fsspec.open.return_value = mock_opener
+            w = JSONLWriter("gs://bucket/data.jsonl")
+            w.open({"fields": []})
+            mock_fsspec.open.assert_called_once()

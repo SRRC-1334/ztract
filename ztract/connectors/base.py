@@ -4,6 +4,18 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+CLOUD_PREFIXES = (
+    "s3://", "s3a://",
+    "az://", "abfs://", "abfss://",
+    "gs://", "gcs://",
+    "adl://",
+)
+
+
+def is_cloud_path(path: str) -> bool:
+    """Return True if *path* is a cloud storage URI."""
+    return any(path.startswith(p) for p in CLOUD_PREFIXES)
+
 
 class Connector(ABC):
     """Abstract interface for downloading and uploading dataset files."""

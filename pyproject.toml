@@ -53,6 +53,10 @@ mysql-mit = ["pymysql>=1.1"]
 mysql-gpl = ["mysql-connector-python>=8.0"]
 mssql = ["pyodbc>=5.0"]
 all-db = ["psycopg2-binary>=2.9", "pymysql>=1.1", "pyodbc>=5.0"]
+aws = ["s3fs>=2024.1"]
+azure = ["adlfs>=2024.1"]
+gcp = ["gcsfs>=2024.1"]
+cloud = ["s3fs>=2024.1", "adlfs>=2024.1", "gcsfs>=2024.1"]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
