@@ -7,7 +7,7 @@
   [![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen.svg?style=flat-square)](LICENSE)
   [![PyPI](https://img.shields.io/pypi/v/ztract?style=flat-square&logo=PyPI&logoColor=white&color=brightgreen)](https://pypi.org/project/ztract)
   [![JRE](https://img.shields.io/badge/JRE-11+-brightgreen.svg?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net)
-  [![Docs](https://readthedocs.org/projects/ztract/badge/?version=latest&style=flat-square&logo=readthedocs&logoColor=white)](https://ztract.readthedocs.io)
+  [![Docs](https://img.shields.io/readthedocs/ztract?style=flat-square&logo=readthedocs&logoColor=white)](https://ztract.readthedocs.io)
 
   > **Status:** 0.1.0.dev1 -- active development
   > `pip install ztract==0.1.0.dev1` to try early
@@ -65,6 +65,7 @@ The result: pull files from your mainframe via FTP, SFTP, or Zowe, decode them w
 - **YAML pipelines** — define multi-step extract/transform/load workflows in a single file
 - **Copybook inspector** — visualise any `.cpy` file as a formatted field table in seconds
 - **Enterprise observability** — structured JSON logs, immutable audit trail, reject files with full context
+- **Cloud output** — write decoded data directly to S3, Azure Blob, or Google Cloud Storage; no intermediate local file needed
 
 ---
 
@@ -81,6 +82,7 @@ The result: pull files from your mainframe via FTP, SFTP, or Zowe, decode them w
 | Mock generator | ✅ | ❌ | ❌ | ❌ |
 | FTP/SFTP/Zowe built-in | ✅ | ❌ | ❌ | varies |
 | Write back to mainframe | ✅ | ❌ | ❌ | varies |
+| Cloud output (S3/Azure/GCS) | ✅ | ❌ | ❌ | ❌ |
 | Open source | ✅ | ✅ | ✅ | ❌ |
 | Cost | Free | Free | Free | $$$$ |
 
@@ -105,6 +107,26 @@ pip install ztract[postgres]   # PostgreSQL (psycopg2)
 pip install ztract[mysql]      # MySQL (PyMySQL)
 pip install ztract[mssql]      # SQL Server (pyodbc)
 pip install ztract[all-db]     # All three
+```
+
+**Optional cloud storage:**
+
+```bash
+pip install ztract[aws]    # AWS S3 (s3fs)
+pip install ztract[azure]  # Azure Blob Storage (adlfs)
+pip install ztract[gcp]    # Google Cloud Storage (gcsfs)
+pip install ztract[cloud]  # All three
+```
+
+Credentials via environment variables — never hardcoded:
+```bash
+# AWS — set standard env vars
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_DEFAULT_REGION=eu-west-1
+
+# Then use s3:// paths directly
+ztract convert --output s3://my-lake/customers.parquet
 ```
 
 ---
@@ -368,6 +390,9 @@ Use the alias anywhere a codepage is expected: `--codepage norway` or `--codepag
 | `mssql://...` | SQL Server via pyodbc (optional: `pip install ztract[mssql]`) |
 | `ftp://...` | Write back to z/OS via FTP with SITE commands for dataset allocation |
 | `sftp://...` | Write back to z/OS via SFTP |
+| `s3://bucket/path.parquet` | AWS S3 via fsspec (optional: `pip install ztract[aws]`) |
+| `az://container/path.csv` | Azure Blob Storage (optional: `pip install ztract[azure]`) |
+| `gs://bucket/path.parquet` | Google Cloud Storage (optional: `pip install ztract[gcp]`) |
 
 ---
 
@@ -403,32 +428,35 @@ Every job produces:
 
 ## Acknowledgements
 
-Ztract's COBOL parsing engine is built on **[Cobrix](https://github.com/AbsaOSS/cobrix)** by AbsaOSS — an outstanding open-source COBOL/EBCDIC parser for Apache Spark. We use the standalone `cobol-parser` module (no Spark dependency) and are grateful for the years of work that went into handling REDEFINES, OCCURS DEPENDING ON, packed decimal, and every IBM record format correctly. Standing on their shoulders.
+Ztract's COBOL parsing engine is built on **[Cobrix](https://github.com/AbsaOSS/cobrix)** by AbsaOSS — an outstanding open-source COBOL/EBCDIC parser. We use the standalone `cobol-parser` module (no Spark dependency) and are grateful for the years of work that went into handling REDEFINES, OCCURS DEPENDING ON, packed decimal, and every IBM record format correctly. Standing on their shoulders.
 
-Mainframe connectivity via **[Zowe CLI](https://www.zowe.org)** and the **[z/OS FTP Plugin](https://github.com/zowe/zowe-cli-ftp-plugin)** — the open source framework that makes z/OS accessible from modern tools. Zowe is a project of the [Open Mainframe Project](https://www.openmainframeproject.org/), hosted by the Linux Foundation.
+Mainframe connectivity via **[Zowe CLI](https://zowe.org)** and the **[z/OS FTP Plugin](https://github.com/zowe/zowe-cli-ftp-plugin)** — the open source framework that makes z/OS accessible from modern tooling. Zowe is a project of the [Open Mainframe Project](https://openmainframeproject.org), hosted by the Linux Foundation.
 
-Cloud storage output powered by **[fsspec](https://github.com/fsspec/filesystem_spec)** and the Apache Arrow ecosystem — enabling direct writes to S3, Azure Blob, and Google Cloud Storage from a single `pip install`.
+Cloud storage powered by **[fsspec](https://github.com/fsspec/filesystem_spec)** and the **[Apache Arrow](https://arrow.apache.org)** ecosystem — enabling direct writes to S3, Azure Blob, and Google Cloud Storage from a single pip install.
 
 Table diff powered by **[daff](https://github.com/paulfitz/daff)** (Apache 2.0).
 Binary diff powered by **[multidiff](https://github.com/juhakivekas/multidiff)** (MIT).
 Console output powered by **[rich](https://github.com/Textualize/rich)** (MIT).
-
-**Full dependency table:**
+SFTP powered by **[paramiko](https://github.com/paramiko/paramiko)** (LGPL 2.1).
 
 | Package | Purpose | License |
 |---|---|---|
 | [Cobrix](https://github.com/AbsaOSS/cobrix) | COBOL parser engine | Apache 2.0 |
 | [Zowe CLI](https://github.com/zowe/zowe-cli) | z/OS connectivity | EPL 2.0 |
+| [zos-ftp plugin](https://github.com/zowe/zowe-cli-ftp-plugin) | z/OS FTP via Zowe | EPL 2.0 |
+| [pyarrow](https://arrow.apache.org) | Parquet + cloud FS | Apache 2.0 |
+| [fsspec](https://github.com/fsspec/filesystem_spec) | Cloud abstraction | BSD-3 |
+| [paramiko](https://github.com/paramiko/paramiko) | SFTP | LGPL 2.1 |
 | [daff](https://github.com/paulfitz/daff) | Table diff | Apache 2.0 |
 | [multidiff](https://github.com/juhakivekas/multidiff) | Binary hex diff | MIT |
 | [rich](https://github.com/Textualize/rich) | Console output | MIT |
-| [pyarrow](https://arrow.apache.org/) | Parquet + cloud FS | Apache 2.0 |
-| [fsspec](https://github.com/fsspec/filesystem_spec) | Cloud abstraction | BSD-3 |
-| [paramiko](https://github.com/paramiko/paramiko) | SFTP | LGPL 2.1 |
 | [click](https://github.com/pallets/click) | CLI framework | BSD-3 |
-| [Faker](https://github.com/joke2k/faker) | Mock data | MIT |
-| [SQLAlchemy](https://www.sqlalchemy.org/) | Database output | MIT |
+| [SQLAlchemy](https://www.sqlalchemy.org) | Database output | MIT |
+| [Faker](https://github.com/joke2k/faker) | Mock data generation | MIT |
 | [PyYAML](https://github.com/yaml/pyyaml) | Config parsing | MIT |
+| [s3fs](https://github.com/fsspec/s3fs) | AWS S3 (optional) | BSD-3 |
+| [adlfs](https://github.com/fsspec/adlfs) | Azure Blob (optional) | BSD-3 |
+| [gcsfs](https://github.com/fsspec/gcsfs) | Google Cloud (optional) | BSD-3 |
 
 See [NOTICE](NOTICE) for full attribution.
 
